@@ -18,4 +18,4 @@ local.properties
 /app/release
 /app/build
 
-.apk
+*.apk
