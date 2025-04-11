@@ -34,7 +34,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_2,
                 isLocal = false,
-                videoUrl = VIDEO_ONE,
+                videoUrl = VIDEO_1,
                 isShowLoading = false,
                 canPlay = true,
             )
@@ -44,7 +44,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_3,
                 isLocal = false,
-                videoUrl = VIDEO_TWO,
+                videoUrl = VIDEO_2,
                 isShowLoading = false,
                 canPlay = true,
             )
@@ -54,7 +54,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_4,
                 isLocal = false,
-                videoUrl = VIDEO_ONE,
+                videoUrl = VIDEO_1,
                 isShowLoading = false,
                 canPlay = true,
             )
@@ -64,7 +64,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_5,
                 isLocal = false,
-                videoUrl = VIDEO_TWO,
+                videoUrl = VIDEO_2,
                 isShowLoading = false,
                 canPlay = false,
             )
@@ -74,7 +74,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_6,
                 isLocal = false,
-                videoUrl = VIDEO_ONE,
+                videoUrl = VIDEO_1,
                 isShowLoading = false,
                 canPlay = false,
             )
@@ -84,7 +84,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_7,
                 isLocal = false,
-                videoUrl = VIDEO_TWO,
+                videoUrl = VIDEO_2,
                 isShowLoading = false,
                 canPlay = true,
             )
@@ -94,7 +94,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_8,
                 isLocal = false,
-                videoUrl = VIDEO_ONE,
+                videoUrl = VIDEO_1,
                 isShowLoading = false,
                 canPlay = true,
             )
@@ -103,7 +103,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_9,
                 isLocal = false,
-                videoUrl = VIDEO_TWO,
+                videoUrl = VIDEO_2,
                 isShowLoading = false,
                 canPlay = true,
             )
@@ -112,7 +112,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_1,
                 isLocal = false,
-                videoUrl = VIDEO_ONE,
+                videoUrl = VIDEO_1,
                 isShowLoading = false,
                 canPlay = true,
             )
@@ -121,7 +121,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_2,
                 isLocal = false,
-                videoUrl = VIDEO_TWO,
+                videoUrl = VIDEO_2,
                 isShowLoading = false,
                 canPlay = true,
             )
@@ -130,7 +130,7 @@ fun getHomeFeedData(): MutableList<XhsFeedModel> {
             createModel(
                 coverUrl = R.mipmap.icon_video_3,
                 isLocal = false,
-                videoUrl = VIDEO_ONE,
+                videoUrl = VIDEO_1,
                 isShowLoading = false,
                 canPlay = true,
             )
@@ -150,10 +150,12 @@ private fun createModel(
 }
 
 /** the video source */
-val VIDEO_ONE =
+val VIDEO_1 =
     Utils.decodeBase64("aHR0cHM6Ly9zbnMtdmlkZW8tYWwueGhzY2RuLmNvbS9zdHJlYW0vMTEwLzQwNS8wMWU1ODNjYjZlMGZlZDVhMDEwMzcwMDM4YzhhZDk2MmZiXzQwNS5tcDQ=")
-val VIDEO_TWO =
+val VIDEO_2 =
     Utils.decodeBase64("aHR0cDovL3Nucy12aWRlby1hbC54aHNjZG4uY29tL3NwZWN0cnVtLzAxZTI5NjRlNDE2YmUwNzcwMTgzNzAwMzgxMWI0ZTM5YzlfNTEzLm1wNA==")
+val VIDEO_3 =
+    "https://bdcloud-player-new.cdn.bcebos.com/testvideo/hls/265/1080p/liulangdiqiu/liulangdiqiu-265-1080.m3u8"
 
 val LIVE_VIDEO =
     Utils.decodeBase64("aHR0cDovL2xpdmUtcGxheS54aHNjZG4uY29tL2xpdmUvNTY5MDcyNTczNzk5OTkxNzI5LmZsdj91aWQ9NjQxMjkwNWUwMDAwMDAwMDEyMDEwNjIx")

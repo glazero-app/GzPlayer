@@ -9,10 +9,10 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.kelin.photoselector.PhotoSelector
-import com.tbruyelle.rxpermissions3.RxPermissions
+import com.xingin.openredplayer.permission.RxPermissions
 import com.xingin.openredplayer.R
 import com.xingin.openredplayer.feed.XhsFeedActivity
-import com.xingin.openredplayer.feed.model.VIDEO_ONE
+import com.xingin.openredplayer.feed.model.VIDEO_1
 import com.xingin.openredplayer.feed.model.covertToVideoUrls
 import com.xingin.openredplayer.floating.XhsFloatingService
 import com.xingin.openredplayer.floating.XhsFloatingWindowHelper
@@ -114,7 +114,7 @@ class XhsHomeFragment : Fragment() {
         // service has stared: play the video url
         if (XhsFloatingService.serviceHasStarted) {
             val intent = Intent(XhsFloatingService.ACTION_SHOW_VIDEO).apply {
-                putExtra(XhsFloatingService.INTENT_KEY_VIDEO_URLS, VIDEO_ONE)
+                putExtra(XhsFloatingService.INTENT_KEY_VIDEO_URLS, VIDEO_1)
                 putExtra(XhsFloatingService.INTENT_KEY_SHOW_LOADING, false)
             }
             LocalBroadcastManager.getInstance(activity).sendBroadcast(intent)
@@ -123,7 +123,7 @@ class XhsHomeFragment : Fragment() {
         // service is not start:has permission，start the service and then play the video url
         if (XhsFloatingWindowHelper.checkHasFloatingPermission(this.activity)) {
             val intent = Intent(activity, XhsFloatingService::class.java).apply {
-                putExtra(XhsFloatingService.INTENT_KEY_VIDEO_URLS, VIDEO_ONE)
+                putExtra(XhsFloatingService.INTENT_KEY_VIDEO_URLS, VIDEO_1)
                 putExtra(XhsFloatingService.INTENT_KEY_SHOW_LOADING, false)
             }
             activity.startService(intent)

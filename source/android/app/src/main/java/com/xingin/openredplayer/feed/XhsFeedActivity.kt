@@ -11,7 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
-import com.tbruyelle.rxpermissions3.RxPermissions
+import com.xingin.openredplayer.permission.RxPermissions
 import com.xingin.openredplayer.R
 import com.xingin.openredplayer.feed.model.XhsFeedModel
 import com.xingin.openredplayer.feed.model.XhsVisibleItemInfo

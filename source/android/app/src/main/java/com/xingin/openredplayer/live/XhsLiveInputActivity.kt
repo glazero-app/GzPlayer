@@ -7,9 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.xingin.openredplayer.R
-import com.xingin.openredplayer.feed.model.JSON_DATA_SOURCE
 import com.xingin.openredplayer.feed.model.LIVE_VIDEO
-import com.xingin.openredplayer.feed.model.VIDEO_ONE
 import com.xingin.openredplayer.player.XhsPlayerActivity
 import java.io.Serializable
 

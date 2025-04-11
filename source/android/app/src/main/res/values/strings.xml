@@ -1,47 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Red Player</string>
-    <string name="detail_play_section_title">The Video All Sections</string>
-    <string name="detail_play_section_item_title">The Video Section</string>
+    <string name="app_name">红播放器</string>
+    <string name="detail_play_section_title">视频所有章节</string>
+    <string name="detail_play_section_item_title">视频章节</string>
 
-    <string name="pref_title_render">Media Render Setting</string>
+    <string name="pref_title_render">媒体渲染设置</string>
     <string name="pref_key_enable_debug_info_view">pref.enable_debug_info_view</string>
-    <string name="pref_title_enable_debug_info_view">Display Debug Panel</string>
-    <string name="pref_summary_enable_debug_info_view">Can view FPS, decoder, and other information.</string>
+    <string name="pref_title_enable_debug_info_view">显示调试面板</string>
+    <string name="pref_summary_enable_debug_info_view">可查看帧率、解码器等信息。</string>
 
     <string name="pref_key_enable_surface_view">pref.enable_surface_view</string>
-    <string name="pref_title_enable_surface_view">Force Use SurfaceView</string>
-    <string name="pref_summary_enable_surface_view">Default, use TextureView, opening use SurfaceView</string>
+    <string name="pref_title_enable_surface_view">强制使用 SurfaceView</string>
+    <string name="pref_summary_enable_surface_view">默认使用 TextureView，开启后使用 SurfaceView</string>
 
 
-    <string name="pref_title_player_core">Media Player Setting</string>
+    <string name="pref_title_player_core">媒体播放器设置</string>
     <string name="pref_key_using_media_codec">pref.using_media_codec</string>
-    <string name="pref_title_using_media_codec">Use MediaCodec Decode</string>
-    <string name="pref_summary_using_media_codec">Default, MediaCodec decoding is used. opening, soft decoder used</string>
+    <string name="pref_title_using_media_codec">使用 MediaCodec 解码</string>
+    <string name="pref_summary_using_media_codec">默认使用 MediaCodec 解码，开启后使用软解码器</string>
 
     <string name="pref_key_using_android_media_player">pref.using_android_media_player</string>
-    <string name="pref_title_using_android_media_player">Use System Media Player</string>
-    <string name="pref_summary_using_android_media_player">Default, open source player is used. opening, the system player will be used</string>
+    <string name="pref_title_using_android_media_player">使用系统媒体播放器</string>
+    <string name="pref_summary_using_android_media_player">默认使用开源播放器，开启后将使用系统播放器</string>
 
-    <string name="pref_title_video">Video Play Setting</string>
+    <string name="pref_title_video">视频播放设置</string>
     <string name="pref_key_video_play_loop">pref.video_play_loop</string>
-    <string name="pref_title_video_play_loop">Loop Play</string>
+    <string name="pref_title_video_play_loop">循环播放</string>
 
     <string name="pref_key_video_play_auto_next">pref.video_play_auto_next</string>
-    <string name="pref_title_video_play_auto_next">Auto Play Next</string>
-    <string name="pref_summary_video_play_auto_next">The auto play of the next only takes effect when the loop switch is turned on.</string>
+    <string name="pref_title_video_play_auto_next">自动播放下一个</string>
+    <string name="pref_summary_video_play_auto_next">仅在循环开关开启时，自动播放下一个才生效。</string>
 
     <string name="pref_key_video_play_cover">pref.video_cover</string>
-    <string name="pref_title_video_play_cover">Feed Cover Play</string>
-    <string name="pref_summary_video_play_cover">Opening, the home feed will play dynamic covers</string>
+    <string name="pref_title_video_play_cover">信息流封面播放</string>
+    <string name="pref_summary_video_play_cover">开启后，首页信息流将播放动态封面</string>
 
 
     <string name="pref_key_video_window">pref.video_window</string>
-    <string name="pref_title_video_window">Support Pip Play</string>
-    <string name="pref_summary_video_window">To support pip play, please apply for window floating permission first. Click to apply.</string>
+    <string name="pref_title_video_window">支持画中画播放</string>
+    <string name="pref_summary_video_window">若要支持画中画播放，请先申请窗口悬浮权限。点击申请。</string>
 
     <string name="pref_key_player_speed">pref.player_speed</string>
-    <string name="pref_title_player_speed">Select Speed</string>
+    <string name="pref_title_player_speed">选择播放速度</string>
     <string-array name="pref_entry_values_player_speed">
         <item>0.25</item>
         <item>0.5</item>
@@ -52,32 +52,32 @@
         <item>2.0</item>
     </string-array>
 
-    <string name="home_tab_home_title">Home</string>
-    <string name="home_tab_setting_title">Settings</string>
-    <string name="home_title">Demo Of Video Feed Page</string>
-    <string name="home_item_url">URL/JSON</string>
-    <string name="home_item_live_url">LIVE URL</string>
-    <string name="home_item_album">Play Local Resource</string>
-    <string name="home_item_feed">Online Samples</string>
-    <string name="home_item_window">Pip Samples</string>
-    <string name="home_red_player">RedPlayer</string>
-    <string name="home">Home</string>
-    <string name="setting">Settings</string>
+    <string name="home_tab_home_title">首页</string>
+    <string name="home_tab_setting_title">设置</string>
+    <string name="home_title">视频信息流页面示例</string>
+    <string name="home_item_url">网址/JSON</string>
+    <string name="home_item_live_url">直播网址</string>
+    <string name="home_item_album">播放本地资源</string>
+    <string name="home_item_feed">在线示例</string>
+    <string name="home_item_window">画中画示例</string>
+    <string name="home_red_player">红播放器</string>
+    <string name="home">首页</string>
+    <string name="setting">设置</string>
 
-    <string name="input_url_title">Demo Of Custom URL Page</string>
-    <string name="input_url_hint">Input url or json play</string>
-    <string name="input_url_default">Url</string>
-    <string name="input_json_default">Json</string>
-    <string name="input_clear">Clear</string>
-    <string name="input_jump">Play</string>
+    <string name="input_url_title">自定义网址页面示例</string>
+    <string name="input_url_hint">输入网址或 JSON 进行播放</string>
+    <string name="input_url_default">网址</string>
+    <string name="input_json_default">JSON</string>
+    <string name="input_clear">清除</string>
+    <string name="input_jump">播放</string>
 
-    <string name="input_live_url_title">Demo of Live URL Page</string>
-    <string name="input_live_url_default">Live URL</string>
-    <string name="input_live_url_hint">Input live url to play</string>
+    <string name="input_live_url_title">直播网址页面示例</string>
+    <string name="input_live_url_default">直播网址</string>
+    <string name="input_live_url_hint">输入直播网址进行播放</string>
 
-    <string name="play_section">All</string>
-    <string name="play_speed">Playing Speed</string>
-    <string name="play_show_or_hide">Show/Hide</string>
-    <string name="play_title">Demo Of Video Detail Page</string>
+    <string name="play_section">全部</string>
+    <string name="play_speed">播放速度</string>
+    <string name="play_show_or_hide">显示/隐藏</string>
+    <string name="play_title">视频详情页面示例</string>
 
 </resources>
