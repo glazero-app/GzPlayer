@@ -45,6 +45,7 @@ extern "C" {
 
 REDPLAYER_NS_BEGIN;
 
+// 视频处理器类，管理解码流程、帧队列和硬件加速
 class CVideoProcesser : public CRedThreadBase,
                         reddecoder::VideoDecodedCallback {
 public:
