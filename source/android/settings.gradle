@@ -16,7 +16,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "OpenRedPlayer"
+rootProject.name = "GzPlayer"
 include ':app'
 include ':OpenRedPlayerCore'
 include ':OpenRedPreload'

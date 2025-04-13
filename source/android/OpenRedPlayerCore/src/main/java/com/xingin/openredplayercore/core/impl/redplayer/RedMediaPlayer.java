@@ -713,6 +713,7 @@ public class RedMediaPlayer extends AbstractMediaPlayer {
         }
     }
 
+    // native层的log回调到业务层
     private static void onNativeLog(int level, String tag, byte[] logContent) {
         if (level < gLogCallBackLevel) {
             return;

@@ -8,7 +8,6 @@ android {
 
     defaultConfig {
         minSdk 21
-        targetSdk 28
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -42,7 +41,8 @@ android {
 
     externalNativeBuild {
         cmake {
-            path "../../redplayercore/CMakeLists.txt"
+//            path "../../redplayercore/CMakeLists.txt"
+            path  ("src/main/cpp/redplayercore/CMakeLists.txt")
         }
     }
 
