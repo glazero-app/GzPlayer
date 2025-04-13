@@ -824,6 +824,7 @@ REDPLAYER_NS_BEGIN ;
         return mRedSourceController->pktQueueFrontIsFlush(TYPE_VIDEO);
     }
 
+    // 从队列中获取一帧数据
     RED_ERR CVideoProcesser::getFrame(std::unique_ptr<CGlobalBuffer> &buffer) {
         if (!mFrameQueue) {
             return ME_ERROR;
