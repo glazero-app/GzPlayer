@@ -1,0 +1,71 @@
+//
+// Created by guoshichao on 2025/4/14.
+//
+
+#pragma once
+
+#include "base/RedBuffer.h"
+#include <atomic>
+#include <mutex>
+#include <queue>
+#include <thread>
+
+// FFmpeg 前置声明（避免直接包含FFmpeg头文件污染全局命名空间）
+struct AVFormatContext;
+struct AVCodecContext;
+struct AVStream;
+struct SwsContext;
+struct SwrContext;
+struct AVFrame;
+
+REDPLAYER_NS_BEGIN;
+
+/**
+ * MP4文件录制器（线程安全）
+ * 功能：将CGlobalBuffer中的YUV/PCM数据编码为MP4
+ */
+    class GzRecorder {
+    public:
+        GzRecorder();
+        ~GzRecorder();
+
+        // 初始化编码器
+        bool initVideoEncoder(int width, int height, int fps);
+        bool initAudioEncoder(int sampleRate, int channels);
+
+        // 控制接口
+        void startRecording();
+        void stopRecording();
+
+        // 数据输入（自动深拷贝）
+        void pushVideoFrame(const CGlobalBuffer* buffer);
+        void pushAudioFrame(const CGlobalBuffer* buffer);
+
+    private:
+        // FFmpeg 核心对象
+        AVFormatContext* mFormatCtx = nullptr;
+        AVCodecContext* mVideoCodecCtx = nullptr;
+        AVCodecContext* mAudioCodecCtx = nullptr;
+        AVStream* mVideoStream = nullptr;
+        AVStream* mAudioStream = nullptr;
+        SwsContext* mVideoSwsCtx = nullptr;
+        SwrContext* mAudioSwrCtx = nullptr;
+
+        // 线程控制
+        std::thread mEncodeThread;
+        std::mutex mQueueMutex;
+        std::condition_variable mQueueCond;
+        std::queue<CGlobalBuffer*> mVideoQueue;
+        std::queue<CGlobalBuffer*> mAudioQueue;
+        std::atomic<bool> mIsRecording{false};
+        int64_t mAudioPts = 0; // 音频时间戳累加器
+
+        // 内部方法
+        void encodeLoop();
+        void releaseResources();
+        AVFrame* convertVideoFrame(const CGlobalBuffer* buffer);
+        AVFrame* convertAudioFrame(const CGlobalBuffer* buffer);
+        void writePackets(AVCodecContext* codecCtx, AVStream* stream);
+    };
+
+REDPLAYER_NS_END;
