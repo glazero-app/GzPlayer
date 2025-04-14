@@ -5,6 +5,7 @@
 #pragma once
 
 #include "base/RedBuffer.h"
+#include "base/RedQueue.h"
 #include <atomic>
 #include <mutex>
 #include <queue>
@@ -53,10 +54,7 @@ REDPLAYER_NS_BEGIN;
 
         // 线程控制
         std::thread mEncodeThread;
-        std::mutex mQueueMutex;
-        std::condition_variable mQueueCond;
-        std::queue<CGlobalBuffer*> mVideoQueue;
-        std::queue<CGlobalBuffer*> mAudioQueue;
+        FrameQueue mFrameQueue;
         std::atomic<bool> mIsRecording{false};
         int64_t mAudioPts = 0; // 音频时间戳累加器
 

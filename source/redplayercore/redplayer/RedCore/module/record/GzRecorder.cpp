@@ -93,7 +93,7 @@ void GzRecorder::startRecording() {
 void GzRecorder::stopRecording() {
     mIsRecording = false;
     if (mEncodeThread.joinable()) {
-        mQueueCond.notify_all(); // 唤醒可能等待的线程
+        mFrameQueue.abort();
         mEncodeThread.join();
     }
     releaseResources();
@@ -116,29 +116,51 @@ void GzRecorder::encodeLoop() {
     }
 
     // 主循环
-    while (mIsRecording || !mVideoQueue.empty() || !mAudioQueue.empty()) {
+    while (mIsRecording) {
+        std::unique_ptr<CGlobalBuffer> buffer;
+        mFrameQueue.getFrame(buffer);
         // 处理视频帧（示例，音频类似）
-        std::unique_lock<std::mutex> lock(mQueueMutex);
-        if (!mVideoQueue.empty()) {
-            CGlobalBuffer* buffer = mVideoQueue.front();
-            mVideoQueue.pop();
-            lock.unlock();
-
-            AVFrame* frame = convertVideoFrame(buffer);
-            if (frame) {
-                avcodec_send_frame(mVideoCodecCtx, frame);
-                writePackets(mVideoCodecCtx, mVideoStream);
-                av_frame_free(&frame);
+        if (buffer == nullptr) {
+            continue;
+        }
+        switch (buffer->pixel_format) {
+            case CGlobalBuffer::kUnknow: {
+                // 可能需要报错
+                break;
             }
-            delete buffer; // 释放深拷贝数据
-        } else {
-            mQueueCond.wait_for(lock, std::chrono::milliseconds(10));
+            case CGlobalBuffer::kAudio: {
+                // 编码音频帧
+                AVFrame* audioFrame = convertAudioFrame(buffer.get());
+                if (audioFrame) {
+                    avcodec_send_frame(mAudioCodecCtx, audioFrame);
+                    writePackets(mAudioCodecCtx, mAudioStream);
+                    av_frame_free(&audioFrame);
+                }
+                break;
+            }
+            case CGlobalBuffer::kYUV420:
+            case CGlobalBuffer::kVTBBuffer:
+            case CGlobalBuffer::kMediaCodecBuffer:
+            case CGlobalBuffer::kYUVJ420P:
+            case CGlobalBuffer::kYUV420P10LE:
+            case CGlobalBuffer::kHarmonyVideoDecoderBuffer: {
+                // 编码视频帧
+                AVFrame* videoFrame = convertVideoFrame(buffer.get());
+                if (videoFrame) {
+                    avcodec_send_frame(mVideoCodecCtx, videoFrame);
+                    writePackets(mVideoCodecCtx, mVideoStream);
+                    av_frame_free(&videoFrame);
+                }
+                break;
+            }
         }
     }
 
     // 冲刷编码器
     avcodec_send_frame(mVideoCodecCtx, nullptr);
     writePackets(mVideoCodecCtx, mVideoStream);
+    avcodec_send_frame(mAudioCodecCtx, nullptr);
+    writePackets(mAudioCodecCtx, mAudioStream);
 
     // 写入文件尾
     av_write_trailer(mFormatCtx);
@@ -151,13 +173,6 @@ void GzRecorder::releaseResources() {
     if (mVideoCodecCtx) avcodec_free_context(&mVideoCodecCtx);
     if (mAudioCodecCtx) avcodec_free_context(&mAudioCodecCtx);
     if (mFormatCtx) avformat_free_context(mFormatCtx);
-
-    // 清空队列
-    std::lock_guard<std::mutex> lock(mQueueMutex);
-    while (!mVideoQueue.empty()) {
-        delete mVideoQueue.front();
-        mVideoQueue.pop();
-    }
 }
 
 REDPLAYER_NS_END;
