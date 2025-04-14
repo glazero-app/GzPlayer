@@ -17,7 +17,7 @@
     <string name="pref_title_player_core">媒体播放器设置</string>
     <string name="pref_key_using_media_codec">pref.using_media_codec</string>
     <string name="pref_title_using_media_codec">使用 MediaCodec 解码</string>
-    <string name="pref_summary_using_media_codec">默认使用 MediaCodec 解码，开启后使用软解码器</string>
+    <string name="pref_summary_using_media_codec">默认使用软解码器解码，开启后使用 MediaCodec 解码</string>
 
     <string name="pref_key_using_android_media_player">pref.using_android_media_player</string>
     <string name="pref_title_using_android_media_player">使用系统媒体播放器</string>
