@@ -156,6 +156,8 @@ val VIDEO_2 =
     Utils.decodeBase64("aHR0cDovL3Nucy12aWRlby1hbC54aHNjZG4uY29tL3NwZWN0cnVtLzAxZTI5NjRlNDE2YmUwNzcwMTgzNzAwMzgxMWI0ZTM5YzlfNTEzLm1wNA==")
 val VIDEO_3 =
     "https://bdcloud-player-new.cdn.bcebos.com/testvideo/hls/265/1080p/liulangdiqiu/liulangdiqiu-265-1080.m3u8"
+val VIDEO_4 =
+    "https://sf1-cdn-tos.huoshanstatic.com/obj/media-fe/xgplayer_doc_video/hls/xgplayer-demo.m3u8"
 
 val LIVE_VIDEO =
     Utils.decodeBase64("aHR0cDovL2xpdmUtcGxheS54aHNjZG4uY29tL2xpdmUvNTY5MDcyNTczNzk5OTkxNzI5LmZsdj91aWQ9NjQxMjkwNWUwMDAwMDAwMDEyMDEwNjIx")

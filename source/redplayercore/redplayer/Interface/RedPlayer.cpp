@@ -333,6 +333,20 @@ RED_ERR CRedPlayer::stop() {
   return ret;
 }
 
+RED_ERR CRedPlayer::startRecord(std::string path) {
+    RED_ERR ret = OK;
+    return ret;
+}
+
+RED_ERR CRedPlayer::stopRecord() {
+    RED_ERR ret = OK;
+    return ret;
+}
+
+bool CRedPlayer::isRecording() {
+    return false;
+}
+
 void CRedPlayer::release() {
   AV_LOGD_ID(TAG, mID, "%s\n", __func__);
   std::unique_lock<std::mutex> lck(mLock);

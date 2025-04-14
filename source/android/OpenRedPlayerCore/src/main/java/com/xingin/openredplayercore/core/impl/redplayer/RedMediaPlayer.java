@@ -310,6 +310,27 @@ public class RedMediaPlayer extends AbstractMediaPlayer {
     }
 
     @Override
+    public void startRecord(String path) throws IllegalStateException {
+        _startRecord(path);
+    }
+
+    private native void _startRecord(String path) throws IllegalStateException;
+
+    @Override
+    public void stopRecord() throws IllegalStateException {
+        _stopRecord();
+    }
+
+    private native void _stopRecord() throws IllegalStateException;
+
+    @Override
+    public boolean isRecording() {
+        return _isRecording();
+    }
+
+    private native boolean _isRecording();
+
+    @Override
     public void setEnableMediaCodec(boolean enable) {
         _setEnableMediaCodec(enable);
     }

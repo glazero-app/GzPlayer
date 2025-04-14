@@ -666,6 +666,31 @@ static jboolean RedPlayer_isPlaying(JNIEnv *env, jobject thiz) {
     return retval;
 }
 
+// 开始录制
+static void RedPlayer_startRecord(JNIEnv *env, jobject thiz, jstring path) {
+    sp<CRedPlayer> mp = getRedPlayer(env, thiz);
+    JNI_CHECK_RET_VOID(mp, env, JAVA_ILLEGAL_STATE_EXCEPTION,"mpjni: startRecord: null mp");
+
+    std::string c_path = JniGetStringUTFCharsCatchAll(env, path);
+    mp->startRecord(c_path);
+}
+
+// 停止录制
+static void RedPlayer_stopRecord(JNIEnv *env, jobject thiz) {
+    sp<CRedPlayer> mp = getRedPlayer(env, thiz);
+    JNI_CHECK_RET_VOID(mp, env, JAVA_ILLEGAL_STATE_EXCEPTION,"mpjni: stopRecord: null mp");
+    mp->stopRecord();
+}
+
+// 录制状态
+static jboolean RedPlayer_isRecording(JNIEnv *env, jobject thiz) {
+    jboolean retval = JNI_FALSE;
+    sp<CRedPlayer> mp = getRedPlayer(env, thiz);
+    JNI_CHECK_RET(mp, env, nullptr, "mpjni: isRecording: null mp", retval);
+    retval = mp->isRecording() ? JNI_TRUE : JNI_FALSE;
+    return retval;
+}
+
 // 获取当前播放位置
 static void RedPlayer_seekTo(JNIEnv *env, jobject thiz, jlong msec) {
     sp<CRedPlayer> mp = getRedPlayer(env, thiz);
@@ -993,80 +1018,57 @@ static void RedPlayer_setLiveMode(JNIEnv *env, jobject thiz, jboolean enable) {
 
 // JNI方法映射表
 static JNINativeMethod g_methods[] = {
-        {"native_init",                    "()V",   reinterpret_cast<void *>(RedPlayer_native_init)},
-        {"native_setup",                   "(Ljava/lang/Object;)V",
-                                                    reinterpret_cast<void *>(RedPlayer_native_setup)},
-        {"_setVideoSurface",               "(Landroid/view/Surface;)V",
-                                                    reinterpret_cast<void *>(RedPlayer_setVideoSurface)},
-        {"_setDataSource",                 "(Ljava/lang/String;)V",
-                                                    reinterpret_cast<void *>(RedPlayer_setDataSource)},
-        {"_setDataSourceJson",             "(Ljava/lang/String;)V",
-                                                    reinterpret_cast<void *>(RedPlayer_setDataSourceJson)},
-        {"_prepareAsync",                  "()V",   reinterpret_cast<void *>(RedPlayer_prepareAsync)},
-        {"_start",                         "()V",   reinterpret_cast<void *>(RedPlayer_start)},
-        {"_stop",                          "()V",   reinterpret_cast<void *>(RedPlayer_stop)},
-        {"_seekTo",                        "(J)V",  reinterpret_cast<void *>(RedPlayer_seekTo)},
-        {"_pause",                         "()V",   reinterpret_cast<void *>(RedPlayer_pause)},
-        {"isPlaying",                      "()Z",   reinterpret_cast<void *>(RedPlayer_isPlaying)},
-        {"_getCurrentPosition",            "()J",
-                                                    reinterpret_cast<void *>(RedPlayer_getCurrentPosition)},
-        {"_getDuration",                   "()J",   reinterpret_cast<void *>(RedPlayer_getDuration)},
-        {"_release",                       "()V",   reinterpret_cast<void *>(RedPlayer_release)},
-        {"_reset",                         "()V",   reinterpret_cast<void *>(RedPlayer_reset)},
-        {"_getVideoCodecInfo",             "()Ljava/lang/String;",
-                                                    reinterpret_cast<void *>(RedPlayer_getVideoCodecInfo)},
-        {"_getAudioCodecInfo",             "()Ljava/lang/String;",
-                                                    reinterpret_cast<void *>(RedPlayer_getAudioCodecInfo)},
-        {"_getPlayUrl",                    "()Ljava/lang/String;",
-                                                    reinterpret_cast<void *>(RedPlayer_getPlayUrl)},
-        {"_getPlayerState",                "()I",
-                                                    reinterpret_cast<void *>(RedPlayer_getPlayerState)},
-        {"_setLoopCount",                  "(I)V",  reinterpret_cast<void *>(RedPlayer_setLoopCount)},
-        {"_getLoopCount",                  "()I",   reinterpret_cast<void *>(RedPlayer_getLoopCount)},
-        {"_setVolume",                     "(FF)V", reinterpret_cast<void *>(RedPlayer_setVolume)},
-        {"native_setCallbackLogLevel",     "(I)V",
-                                                    reinterpret_cast<void *>(RedPlayer_native_setCallbackLogLevel)},
-        {"_setEnableMediaCodec",           "(Z)V",
-                                                    reinterpret_cast<void *>(RedPlayer_setEnableMediaCodec)},
-        {"_setVideoCacheDir",              "(Ljava/lang/String;)V",
-                                                    reinterpret_cast<void *>(RedPlayer_setVideoCacheDir)},
-        {"_getVideoFileFps",               "()F",
-                                                    reinterpret_cast<void *>(RedPlayer_getVideoFileFps)},
-        {"_setHeaders",                    "(Ljava/lang/String;)V",
-                                                    reinterpret_cast<void *>(RedPlayer_setHeaders)},
-        {"_setSpeed",                      "(F)V",  reinterpret_cast<void *>(RedPlayer_setSpeed)},
-        {"_getSpeed",                      "(F)F",  reinterpret_cast<void *>(RedPlayer_getSpeed)},
-        {"_getVideoDecoder",               "(I)I",
-                                                    reinterpret_cast<void *>(RedPlayer_getVideoDecoder)},
-        {"_getVideoOutputFramesPerSecond", "(F)F",
-                                                    reinterpret_cast<void *>(RedPlayer_getVideoOutputFramesPerSecond)},
-        {"_getVideoDecodeFramesPerSecond", "(F)F",
-                                                    reinterpret_cast<void *>(RedPlayer_getVideoDecodeFramesPerSecond)},
-        {"_getDropFrameRate",              "(F)F",
-                                                    reinterpret_cast<void *>(RedPlayer_getDropFrameRate)},
-        {"_getDropPacketRateBeforeDecode", "(F)F",
-                                                    reinterpret_cast<void *>(RedPlayer_getDropPacketRateBeforeDecode)},
-        {"_getVideoCachedSizeMs",          "(J)J",
-                                                    reinterpret_cast<void *>(RedPlayer_getVideoCachedSizeMs)},
-        {"_getAudioCachedSizeMs",          "(J)J",
-                                                    reinterpret_cast<void *>(RedPlayer_getAudioCachedSizeMs)},
-        {"_getVideoCachedSizeBytes",       "(J)J",
-                                                    reinterpret_cast<void *>(RedPlayer_getVideoCachedSizeBytes)},
-        {"_getAudioCachedSizeBytes",       "(J)J",
-                                                    reinterpret_cast<void *>(RedPlayer_getAudioCachedSizeBytes)},
-        {"_getVideoCachedSizePackets",     "(J)J",
-                                                    reinterpret_cast<void *>(RedPlayer_getVideoCachedSizePackets)},
-        {"_getAudioCachedSizePackets",     "(J)J",
-                                                    reinterpret_cast<void *>(RedPlayer_getAudioCachedSizePackets)},
-        {"_getTrafficStatisticByteCount",  "(J)J",
-                                                    reinterpret_cast<void *>(RedPlayer_getTrafficStatisticByteCount)},
-        {"_getRealCacheBytes",             "(J)J",
-                                                    reinterpret_cast<void *>(RedPlayer_getRealCacheBytes)},
-        {"_getFileSize",                   "(J)J",  reinterpret_cast<void *>(RedPlayer_getFileSize)},
-        {"_getBitRate",                    "(J)J",  reinterpret_cast<void *>(RedPlayer_getBitRate)},
-        {"_getSeekCostTimeMs",             "(J)J",
-                                                    reinterpret_cast<void *>(RedPlayer_getSeekCostTimeMs)},
-        {"_setLiveMode",                   "(Z)V",  reinterpret_cast<void *>(RedPlayer_setLiveMode)}};
+        {"native_init",                    "()V",                       reinterpret_cast<void *>(RedPlayer_native_init)},
+        {"native_setup",                   "(Ljava/lang/Object;)V",     reinterpret_cast<void *>(RedPlayer_native_setup)},
+        {"_setVideoSurface",               "(Landroid/view/Surface;)V", reinterpret_cast<void *>(RedPlayer_setVideoSurface)},
+        {"_setDataSource",                 "(Ljava/lang/String;)V",     reinterpret_cast<void *>(RedPlayer_setDataSource)},
+        {"_setDataSourceJson",             "(Ljava/lang/String;)V",     reinterpret_cast<void *>(RedPlayer_setDataSourceJson)},
+        {"_prepareAsync",                  "()V",                       reinterpret_cast<void *>(RedPlayer_prepareAsync)},
+        {"_start",                         "()V",                       reinterpret_cast<void *>(RedPlayer_start)},
+        {"_stop",                          "()V",                       reinterpret_cast<void *>(RedPlayer_stop)},
+        {"_seekTo",                        "(J)V",                      reinterpret_cast<void *>(RedPlayer_seekTo)},
+        {"_pause",                         "()V",                       reinterpret_cast<void *>(RedPlayer_pause)},
+        {"isPlaying",                      "()Z",                       reinterpret_cast<void *>(RedPlayer_isPlaying)},
+
+        {"_startRecord",                   "(Ljava/lang/String;)V",     reinterpret_cast<void *>(RedPlayer_startRecord)},
+        {"_stopRecord",                    "()V",                       reinterpret_cast<void *>(RedPlayer_stopRecord)},
+        {"_isRecording",                   "()Z",                       reinterpret_cast<void *>(RedPlayer_isRecording)},
+
+        {"_getCurrentPosition",            "()J",                       reinterpret_cast<void *>(RedPlayer_getCurrentPosition)},
+        {"_getDuration",                   "()J",                       reinterpret_cast<void *>(RedPlayer_getDuration)},
+        {"_release",                       "()V",                       reinterpret_cast<void *>(RedPlayer_release)},
+        {"_reset",                         "()V",                       reinterpret_cast<void *>(RedPlayer_reset)},
+        {"_getVideoCodecInfo",             "()Ljava/lang/String;",      reinterpret_cast<void *>(RedPlayer_getVideoCodecInfo)},
+        {"_getAudioCodecInfo",             "()Ljava/lang/String;",      reinterpret_cast<void *>(RedPlayer_getAudioCodecInfo)},
+        {"_getPlayUrl",                    "()Ljava/lang/String;",      reinterpret_cast<void *>(RedPlayer_getPlayUrl)},
+        {"_getPlayerState",                "()I",                       reinterpret_cast<void *>(RedPlayer_getPlayerState)},
+        {"_setLoopCount",                  "(I)V",                      reinterpret_cast<void *>(RedPlayer_setLoopCount)},
+        {"_getLoopCount",                  "()I",                       reinterpret_cast<void *>(RedPlayer_getLoopCount)},
+        {"_setVolume",                     "(FF)V",                     reinterpret_cast<void *>(RedPlayer_setVolume)},
+        {"native_setCallbackLogLevel",     "(I)V",                      reinterpret_cast<void *>(RedPlayer_native_setCallbackLogLevel)},
+        {"_setEnableMediaCodec",           "(Z)V",                      reinterpret_cast<void *>(RedPlayer_setEnableMediaCodec)},
+        {"_setVideoCacheDir",              "(Ljava/lang/String;)V",     reinterpret_cast<void *>(RedPlayer_setVideoCacheDir)},
+        {"_getVideoFileFps",               "()F",                       reinterpret_cast<void *>(RedPlayer_getVideoFileFps)},
+        {"_setHeaders",                    "(Ljava/lang/String;)V",     reinterpret_cast<void *>(RedPlayer_setHeaders)},
+        {"_setSpeed",                      "(F)V",                      reinterpret_cast<void *>(RedPlayer_setSpeed)},
+        {"_getSpeed",                      "(F)F",                      reinterpret_cast<void *>(RedPlayer_getSpeed)},
+        {"_getVideoDecoder",               "(I)I",                      reinterpret_cast<void *>(RedPlayer_getVideoDecoder)},
+        {"_getVideoOutputFramesPerSecond", "(F)F",                      reinterpret_cast<void *>(RedPlayer_getVideoOutputFramesPerSecond)},
+        {"_getVideoDecodeFramesPerSecond", "(F)F",                      reinterpret_cast<void *>(RedPlayer_getVideoDecodeFramesPerSecond)},
+        {"_getDropFrameRate",              "(F)F",                      reinterpret_cast<void *>(RedPlayer_getDropFrameRate)},
+        {"_getDropPacketRateBeforeDecode", "(F)F",                      reinterpret_cast<void *>(RedPlayer_getDropPacketRateBeforeDecode)},
+        {"_getVideoCachedSizeMs",          "(J)J",                      reinterpret_cast<void *>(RedPlayer_getVideoCachedSizeMs)},
+        {"_getAudioCachedSizeMs",          "(J)J",                      reinterpret_cast<void *>(RedPlayer_getAudioCachedSizeMs)},
+        {"_getVideoCachedSizeBytes",       "(J)J",                      reinterpret_cast<void *>(RedPlayer_getVideoCachedSizeBytes)},
+        {"_getAudioCachedSizeBytes",       "(J)J",                      reinterpret_cast<void *>(RedPlayer_getAudioCachedSizeBytes)},
+        {"_getVideoCachedSizePackets",     "(J)J",                      reinterpret_cast<void *>(RedPlayer_getVideoCachedSizePackets)},
+        {"_getAudioCachedSizePackets",     "(J)J",                      reinterpret_cast<void *>(RedPlayer_getAudioCachedSizePackets)},
+        {"_getTrafficStatisticByteCount",  "(J)J",                      reinterpret_cast<void *>(RedPlayer_getTrafficStatisticByteCount)},
+        {"_getRealCacheBytes",             "(J)J",                      reinterpret_cast<void *>(RedPlayer_getRealCacheBytes)},
+        {"_getFileSize",                   "(J)J",                      reinterpret_cast<void *>(RedPlayer_getFileSize)},
+        {"_getBitRate",                    "(J)J",                      reinterpret_cast<void *>(RedPlayer_getBitRate)},
+        {"_getSeekCostTimeMs",             "(J)J",                      reinterpret_cast<void *>(RedPlayer_getSeekCostTimeMs)},
+        {"_setLiveMode",                   "(Z)V",                      reinterpret_cast<void *>(RedPlayer_setLiveMode)}};
 
 // JNI库加载时调用
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM *jvm, void *reserved) {

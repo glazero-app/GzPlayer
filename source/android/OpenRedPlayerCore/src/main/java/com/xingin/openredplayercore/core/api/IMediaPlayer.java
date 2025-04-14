@@ -140,6 +140,15 @@ public interface IMediaPlayer {
     void reset();
 
     /**
+     * 录制视频
+     */
+    void startRecord(String path) throws IllegalStateException;
+
+    void stopRecord() throws IllegalStateException;
+
+    boolean isRecording();
+
+    /**
      * read dns: This method can be used for DNS preheating to speed up the playback start time.
      */
     int readDns(String path, String referer);

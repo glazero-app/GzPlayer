@@ -234,6 +234,21 @@ public class AndroidMediaPlayer extends AbstractMediaPlayer {
     }
 
     @Override
+    public void startRecord(String path) throws IllegalStateException {
+        // TODO 待实现
+    }
+
+    @Override
+    public void stopRecord() throws IllegalStateException {
+        // TODO 待实现
+    }
+
+    @Override
+    public boolean isRecording() {
+        return false;
+    }
+
+    @Override
     public void setLooping(boolean looping) {
         mInternalMediaPlayer.setLooping(looping);
     }

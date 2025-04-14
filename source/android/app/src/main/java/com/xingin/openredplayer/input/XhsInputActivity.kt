@@ -10,6 +10,7 @@ import com.xingin.openredplayer.R
 import com.xingin.openredplayer.feed.model.JSON_DATA_SOURCE
 import com.xingin.openredplayer.feed.model.VIDEO_1
 import com.xingin.openredplayer.feed.model.VIDEO_3
+import com.xingin.openredplayer.feed.model.VIDEO_4
 import com.xingin.openredplayer.player.XhsPlayerActivity
 import java.io.Serializable
 
@@ -36,6 +37,7 @@ class XhsInputActivity : AppCompatActivity() {
         titleView = findViewById(R.id.video_title_view)
         titleView.setText(R.string.input_url_title)
         editText = findViewById(R.id.edit_text_view)
+        // 切换视频、修改视频、播放视频
         editText.setText(VIDEO_3)
         urlButton = findViewById(R.id.url_button)
         urlButton.setOnClickListener {

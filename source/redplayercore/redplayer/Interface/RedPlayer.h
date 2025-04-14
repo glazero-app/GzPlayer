@@ -49,16 +49,25 @@ public:
   RED_ERR setDataSource(std::string url);
   RED_ERR setDataSourceFd(int64_t fd);
   RED_ERR prepareAsync();
+
   RED_ERR start();
   RED_ERR pause();
   RED_ERR seekTo(int64_t msec);
   RED_ERR stop();
+
+  RED_ERR startRecord(std::string path);
+  RED_ERR stopRecord();
+  bool isRecording();
+
   void release();
+
   RED_ERR getCurrentPosition(int64_t &pos_ms);
   RED_ERR getDuration(int64_t &dur_ms);
   RED_ERR getPlayableDuration(int64_t &dur_ms);
+
   bool isPlaying();
   bool isRendering();
+
   void setVolume(const float left_volume, const float right_volume);
   void setMute(bool mute);
   void setLoop(int loop_count);
