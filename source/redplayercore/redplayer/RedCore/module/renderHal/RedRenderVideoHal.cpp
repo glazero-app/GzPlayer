@@ -188,7 +188,7 @@ REDPLAYER_NS_BEGIN ;
     }
 
     double
-    CRedRenderVideoHal::ComputeDuration(std::unique_ptr<CGlobalBuffer> &buffer) {
+    CRedRenderVideoHal::ComputeDuration(std::shared_ptr<CGlobalBuffer> &buffer) {
         if (buffer->serial == mFrameTick.serial) {
             double duration = buffer->pts / 1000.0 - mFrameTick.pts;
             if (duration <= FLT_EPSILON || duration > MAX_FRAME_DURATION) {
@@ -201,7 +201,7 @@ REDPLAYER_NS_BEGIN ;
         }
     }
 
-    RED_ERR CRedRenderVideoHal::ReadFrame(std::unique_ptr<CGlobalBuffer> &buffer) {
+    RED_ERR CRedRenderVideoHal::ReadFrame(std::shared_ptr<CGlobalBuffer> &buffer) {
         if (!mVideoProcesser)
             return ME_ERROR;
         return mVideoProcesser->getFrame(buffer);
@@ -420,7 +420,7 @@ REDPLAYER_NS_BEGIN ;
     }
 
     RED_ERR
-    CRedRenderVideoHal::RenderFrame(std::unique_ptr<CGlobalBuffer> &buffer) {
+    CRedRenderVideoHal::RenderFrame(std::shared_ptr<CGlobalBuffer> &buffer) {
         if (ConvertPixelFormat(buffer) != OK) {
             return ME_ERROR;
         }
@@ -622,7 +622,7 @@ REDPLAYER_NS_BEGIN ;
 
     // 处理10bit HDR到8bit的转换（部分渲染器不支持10bit）
     RED_ERR
-    CRedRenderVideoHal::ConvertPixelFormat(std::unique_ptr<CGlobalBuffer> &buffer) {
+    CRedRenderVideoHal::ConvertPixelFormat(std::shared_ptr<CGlobalBuffer> &buffer) {
         if (buffer->pixel_format == CGlobalBuffer::kYUV420P10LE &&
             mClusterType != RedRender::VRClusterTypeAVSBDL) {
             mVideoFrameMetaData.pixel_format = RedRender::VRPixelFormatYUV420p;
@@ -761,7 +761,7 @@ REDPLAYER_NS_BEGIN ;
             }
 #endif
             RED_ERR ret = OK;
-            std::unique_ptr<CGlobalBuffer> in_buffer_;
+            std::shared_ptr<CGlobalBuffer> in_buffer_;
             // 1. 从解码器获取视频帧
             ret = ReadFrame(in_buffer_);
             if (ret == ME_CLOSED) {

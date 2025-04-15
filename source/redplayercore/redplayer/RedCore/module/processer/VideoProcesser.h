@@ -54,7 +54,7 @@ public:
                   int serial = 0);
   ~CVideoProcesser();
 
-  RED_ERR getFrame(std::unique_ptr<CGlobalBuffer> &buffer);
+  RED_ERR getFrame(std::shared_ptr<CGlobalBuffer> &buffer);
   RED_ERR Prepare(sp<MetaData> &metadata);
   RED_ERR stop();
   void setConfig(const sp<CoreGeneralConfig> &config);
@@ -86,7 +86,7 @@ private:
   void notifyListener(uint32_t what, int32_t arg1 = 0, int32_t arg2 = 0,
                       void *obj1 = nullptr, void *obj2 = nullptr,
                       int obj1_len = 0, int obj2_len = 0);
-  bool checkAccurateSeek(const std::unique_ptr<CGlobalBuffer> &buffer);
+  bool checkAccurateSeek(const std::shared_ptr<CGlobalBuffer> &buffer);
   bool pktQueueFrontIsFlush();
 
 private:

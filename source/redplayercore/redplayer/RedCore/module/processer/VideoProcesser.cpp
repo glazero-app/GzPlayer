@@ -279,7 +279,7 @@ REDPLAYER_NS_BEGIN ;
         }
 
         auto meta = decoded_frame->get_video_frame_meta();
-        std::unique_ptr<CGlobalBuffer> buffer(new CGlobalBuffer());
+        std::shared_ptr<CGlobalBuffer> buffer(new CGlobalBuffer());
         if (!buffer) {
             return reddecoder::VideoCodecError::kAllocateBufferError;
         }
@@ -714,7 +714,7 @@ REDPLAYER_NS_BEGIN ;
 
     // 检查是否满足精准Seek条件
     bool CVideoProcesser::checkAccurateSeek(
-            const std::unique_ptr<CGlobalBuffer> &buffer) {
+            const std::shared_ptr<CGlobalBuffer> &buffer) {
         // 1. 计算当前帧与Seek目标的偏差
         bool video_accurate_seek_fail = false;
         int64_t video_seek_pos = 0;
@@ -825,7 +825,7 @@ REDPLAYER_NS_BEGIN ;
     }
 
     // 从队列中获取一帧数据
-    RED_ERR CVideoProcesser::getFrame(std::unique_ptr<CGlobalBuffer> &buffer) {
+    RED_ERR CVideoProcesser::getFrame(std::shared_ptr<CGlobalBuffer> &buffer) {
         if (!mFrameQueue) {
             return ME_ERROR;
         }

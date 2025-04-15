@@ -11,6 +11,7 @@
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
 #include "libswresample/swresample.h"
+#include "libavutil/imgutils.h"
 
 #define TAG "GzRecorder"
 
@@ -117,7 +118,7 @@ void GzRecorder::encodeLoop() {
 
     // 主循环
     while (mIsRecording) {
-        std::unique_ptr<CGlobalBuffer> buffer;
+        std::shared_ptr<CGlobalBuffer> buffer;
         mFrameQueue.getFrame(buffer);
         // 处理视频帧（示例，音频类似）
         if (buffer == nullptr) {
@@ -130,7 +131,7 @@ void GzRecorder::encodeLoop() {
             }
             case CGlobalBuffer::kAudio: {
                 // 编码音频帧
-                AVFrame* audioFrame = convertAudioFrame(buffer.get());
+                AVFrame* audioFrame = convertAudioFrame(buffer);
                 if (audioFrame) {
                     avcodec_send_frame(mAudioCodecCtx, audioFrame);
                     writePackets(mAudioCodecCtx, mAudioStream);
@@ -145,7 +146,7 @@ void GzRecorder::encodeLoop() {
             case CGlobalBuffer::kYUV420P10LE:
             case CGlobalBuffer::kHarmonyVideoDecoderBuffer: {
                 // 编码视频帧
-                AVFrame* videoFrame = convertVideoFrame(buffer.get());
+                AVFrame* videoFrame = convertVideoFrame(buffer);
                 if (videoFrame) {
                     avcodec_send_frame(mVideoCodecCtx, videoFrame);
                     writePackets(mVideoCodecCtx, mVideoStream);
@@ -164,6 +165,125 @@ void GzRecorder::encodeLoop() {
 
     // 写入文件尾
     av_write_trailer(mFormatCtx);
+}
+
+// ================== 数据输入方法 ================== //
+void GzRecorder::pushVideoFrame(std::shared_ptr<CGlobalBuffer> buffer) {
+
+}
+
+void GzRecorder::pushAudioFrame(std::shared_ptr<CGlobalBuffer> buffer) {
+
+}
+
+// ================== 数据转换方法 ================== //
+AVFrame* GzRecorder::convertVideoFrame(std::shared_ptr<CGlobalBuffer> buffer) {
+    AVFrame* frame = av_frame_alloc();
+    if (!frame) return nullptr;
+
+    frame->width = buffer->width;
+    frame->height = buffer->height;
+    frame->format = AV_PIX_FMT_YUV420P;
+    frame->pts = av_rescale_q(buffer->pts, {1, 1000000}, mVideoCodecCtx->time_base);
+
+    // 根据不同格式处理数据
+    switch (buffer->pixel_format) {
+        case CGlobalBuffer::kYUV420:
+        case CGlobalBuffer::kYUVJ420P: {
+            // 直接使用8bit YUV420数据
+            av_frame_get_buffer(frame, 32);
+            av_image_fill_arrays(frame->data, frame->linesize, buffer->yBuffer,
+                                 AV_PIX_FMT_YUV420P, buffer->width, buffer->height, 1);
+            break;
+        }
+        case CGlobalBuffer::kYUV420P10LE: {
+            // 10bit转8bit
+            av_frame_get_buffer(frame, 32);
+            const uint8_t* srcData[3] = {buffer->yBuffer, buffer->uBuffer, buffer->vBuffer};
+            int srcStride[3] = {buffer->yStride, buffer->uStride, buffer->vStride};
+            sws_scale(mVideoSwsCtx, srcData, srcStride, 0,
+                      buffer->height, frame->data, frame->linesize);
+            break;
+        }
+        case CGlobalBuffer::kVTBBuffer: {
+#if defined(__APPLE__)
+    // VideoToolbox输出处理
+    auto* toolBuffer = static_cast<CGlobalBuffer::VideoToolBufferContext*>(buffer->opaque);
+    CVPixelBufferRef pixelBuffer = toolBuffer->buffer;
+
+    CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+    av_frame_get_buffer(frame, 32);
+
+    // 从CVPixelBuffer提取YUV数据
+    uint8_t* dstData[3] = {frame->data[0], frame->data[1], frame->data[2]};
+    int dstLinesize[3] = {frame->linesize[0], frame->linesize[1], frame->linesize[2]};
+
+    for (int i = 0; i < CVPixelBufferGetPlaneCount(pixelBuffer); i++) {
+        memcpy(dstData[i], CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, i),
+              CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, i) * CVPixelBufferGetHeightOfPlane(pixelBuffer, i));
+    }
+
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+#endif
+            break;
+        }
+        default:
+            AV_LOGE(TAG, "Unsupported video format: %d", buffer->pixel_format);
+            av_frame_free(&frame);
+            return nullptr;
+    }
+
+    return frame;
+}
+
+AVFrame* GzRecorder::convertAudioFrame(std::shared_ptr<CGlobalBuffer> buffer) {
+    AVFrame* frame = av_frame_alloc();
+    if (!frame) return nullptr;
+
+    frame->nb_samples = buffer->nb_samples;
+    frame->channel_layout = mAudioCodecCtx->channel_layout;
+    frame->format = mAudioCodecCtx->sample_fmt;
+    frame->sample_rate = mAudioCodecCtx->sample_rate;
+    frame->pts = av_rescale_q(mAudioPts, {1, frame->sample_rate}, mAudioCodecCtx->time_base);
+    mAudioPts += buffer->nb_samples;
+
+    if (av_frame_get_buffer(frame, 0) < 0) {
+        av_frame_free(&frame);
+        return nullptr;
+    }
+
+    // 执行音频重采样（S16 → FLTP）
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(buffer->audioBuf);
+    swr_convert(mAudioSwrCtx, frame->data, buffer->nb_samples, &srcData, buffer->nb_samples);
+
+    return frame;
+}
+
+// ================== 编码输出方法 ================== //
+void GzRecorder::writePackets(AVCodecContext* codecCtx, AVStream* stream) {
+    AVPacket pkt;
+    av_init_packet(&pkt);
+
+    while (true) {
+        int ret = avcodec_receive_packet(codecCtx, &pkt);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+            break;
+        } else if (ret < 0) {
+            AV_LOGE(TAG, "Error receiving packet: %d", ret);
+            break;
+        }
+
+        // 设置输出流时间戳
+        av_packet_rescale_ts(&pkt, codecCtx->time_base, stream->time_base);
+        pkt.stream_index = stream->index;
+
+        // 写入文件
+        if (av_interleaved_write_frame(mFormatCtx, &pkt) < 0) {
+            AV_LOGE(TAG, "Error writing packet");
+        }
+
+        av_packet_unref(&pkt);
+    }
 }
 
 // 释放所有资源

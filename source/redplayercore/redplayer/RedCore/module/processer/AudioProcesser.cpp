@@ -95,7 +95,7 @@ reddecoder::AudioCodecError CAudioProcesser::on_decoded_frame(
     std::unique_ptr<reddecoder::Buffer> decoded_frame) {
 
   auto meta = decoded_frame->get_audio_frame_meta();
-  std::unique_ptr<CGlobalBuffer> buffer(new CGlobalBuffer());
+  std::shared_ptr<CGlobalBuffer> buffer(new CGlobalBuffer());
   if (!buffer) {
     return reddecoder::AudioCodecError::kInitError;
   }
@@ -242,7 +242,7 @@ void CAudioProcesser::notifyListener(uint32_t what, int32_t arg1, int32_t arg2,
 }
 
 bool CAudioProcesser::checkAccurateSeek(
-    const std::unique_ptr<CGlobalBuffer> &buffer) {
+    const std::shared_ptr<CGlobalBuffer> &buffer) {
   bool audio_accurate_seek_fail = false;
   int64_t audio_seek_pos = 0;
   int64_t now = 0;
@@ -348,7 +348,7 @@ bool CAudioProcesser::checkAccurateSeek(
   return false;
 }
 
-RED_ERR CAudioProcesser::getFrame(std::unique_ptr<CGlobalBuffer> &buffer) {
+RED_ERR CAudioProcesser::getFrame(std::shared_ptr<CGlobalBuffer> &buffer) {
   if (!mFrameQueue) {
     return ME_ERROR;
   }

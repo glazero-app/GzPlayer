@@ -194,7 +194,7 @@ REDPLAYER_NS_BEGIN ;
     // 如果等待超时，记录日志
     // 将帧移动到队列中，并通知等待的线程队列不为空
     // 返回操作结果为 OK
-    RED_ERR FrameQueue::putFrame(std::unique_ptr<CGlobalBuffer> &frame) {
+    RED_ERR FrameQueue::putFrame(std::shared_ptr<CGlobalBuffer> &frame) {
         std::unique_lock<std::mutex> lck(mLock);
         while (mFrameQueue.size() >= mCapacity) {
             if (mAbort) {
@@ -218,7 +218,7 @@ REDPLAYER_NS_BEGIN ;
     // 如果 mWakeup 标志为 true，表示队列被唤醒，重置标志并返回 OK
     // 从队列中取出帧，并通知等待的线程队列有空间
     // 返回操作结果为 OK
-    RED_ERR FrameQueue::getFrame(std::unique_ptr<CGlobalBuffer> &frame) {
+    RED_ERR FrameQueue::getFrame(std::shared_ptr<CGlobalBuffer> &frame) {
         std::unique_lock<std::mutex> lck(mLock);
         while (mFrameQueue.empty()) {
             if (mAbort) {

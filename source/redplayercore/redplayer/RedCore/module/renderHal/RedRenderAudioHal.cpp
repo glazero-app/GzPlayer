@@ -96,7 +96,7 @@ RED_ERR CRedRenderAudioHal::PerformFlush() {
   return OK;
 }
 
-RED_ERR CRedRenderAudioHal::ReadFrame(std::unique_ptr<CGlobalBuffer> &buffer) {
+RED_ERR CRedRenderAudioHal::ReadFrame(std::shared_ptr<CGlobalBuffer> &buffer) {
   if (!mAudioProcesser)
     return ME_ERROR;
   return mAudioProcesser->getFrame(buffer);
@@ -181,7 +181,7 @@ RED_ERR CRedRenderAudioHal::Init() {
 }
 
 int CRedRenderAudioHal::ResampleAudioData(
-    std::unique_ptr<CGlobalBuffer> &buffer) {
+    std::shared_ptr<CGlobalBuffer> &buffer) {
   int data_size = 0;
   int resampled_data_size = 0;
   int64_t dec_channel_layout;
@@ -351,7 +351,7 @@ void CRedRenderAudioHal::GetAudioData(char *data, int &len) {
       mAudioBuffer->free();
       mAudioBufSize = 0;
       RED_ERR ret = OK;
-      std::unique_ptr<CGlobalBuffer> buffer;
+      std::shared_ptr<CGlobalBuffer> buffer;
       lck.unlock();
       ret = ReadFrame(buffer);
       if (ret != OK || !buffer) {

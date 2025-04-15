@@ -39,8 +39,8 @@ REDPLAYER_NS_BEGIN;
         void stopRecording();
 
         // 数据输入（自动深拷贝）
-        void pushVideoFrame(const CGlobalBuffer* buffer);
-        void pushAudioFrame(const CGlobalBuffer* buffer);
+        void pushVideoFrame(std::shared_ptr<CGlobalBuffer> buffer);
+        void pushAudioFrame(std::shared_ptr<CGlobalBuffer> buffer);
 
     private:
         // FFmpeg 核心对象
@@ -61,8 +61,8 @@ REDPLAYER_NS_BEGIN;
         // 内部方法
         void encodeLoop();
         void releaseResources();
-        AVFrame* convertVideoFrame(const CGlobalBuffer* buffer);
-        AVFrame* convertAudioFrame(const CGlobalBuffer* buffer);
+        AVFrame* convertVideoFrame(std::shared_ptr<CGlobalBuffer> buffer);
+        AVFrame* convertAudioFrame(std::shared_ptr<CGlobalBuffer> buffer);
         void writePackets(AVCodecContext* codecCtx, AVStream* stream);
     };
 

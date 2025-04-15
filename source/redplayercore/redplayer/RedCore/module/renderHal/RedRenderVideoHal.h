@@ -65,15 +65,15 @@ public:
 private:
   CRedRenderVideoHal() = default;
   double ComputeDelay(double delay);
-  double ComputeDuration(std::unique_ptr<CGlobalBuffer> &buffer);
-  RED_ERR ReadFrame(std::unique_ptr<CGlobalBuffer> &buffer);
+  double ComputeDuration(std::shared_ptr<CGlobalBuffer> &buffer);
+  RED_ERR ReadFrame(std::shared_ptr<CGlobalBuffer> &buffer);
   RED_ERR PerformStart();
   RED_ERR PerformPause();
   RED_ERR PerformStop();
   RED_ERR PerformFlush();
   RED_ERR Init();
-  RED_ERR RenderFrame(std::unique_ptr<CGlobalBuffer> &buffer);
-  RED_ERR ConvertPixelFormat(std::unique_ptr<CGlobalBuffer> &buffer);
+  RED_ERR RenderFrame(std::shared_ptr<CGlobalBuffer> &buffer);
+  RED_ERR ConvertPixelFormat(std::shared_ptr<CGlobalBuffer> &buffer);
   RED_ERR UpdateVideoFrameMetaData();
   void notifyListener(uint32_t what, int32_t arg1 = 0, int32_t arg2 = 0,
                       void *obj1 = nullptr, void *obj2 = nullptr,

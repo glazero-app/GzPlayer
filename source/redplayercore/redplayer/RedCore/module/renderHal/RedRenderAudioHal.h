@@ -84,7 +84,7 @@ private:
   RED_ERR PerformPause();
   RED_ERR PerformStop();
   RED_ERR PerformFlush();
-  RED_ERR ReadFrame(std::unique_ptr<CGlobalBuffer> &buffer);
+  RED_ERR ReadFrame(std::shared_ptr<CGlobalBuffer> &buffer);
   RED_ERR Init();
   static void AudioDataCb(void *userdata, char *data, int &len);
   void GetAudioData(char *data, int &len);
@@ -95,7 +95,7 @@ private:
   FfmegAudioFmtToRedRenderAudioFmt(enum AVSampleFormat sampleFmt);
   AVSampleFormat
   RedRenderAudioFmtToFfmegAudioFmt(redrender::audio::AudioFormat fmt);
-  int ResampleAudioData(std::unique_ptr<CGlobalBuffer> &buffer);
+  int ResampleAudioData(std::shared_ptr<CGlobalBuffer> &buffer);
 
 private:
   const int mID{0};
@@ -103,7 +103,7 @@ private:
   std::mutex mLock;
   std::mutex mNotifyCbLock;
   std::condition_variable mCond;
-  std::unique_ptr<CGlobalBuffer> mAudioBuffer;
+  std::shared_ptr<CGlobalBuffer> mAudioBuffer;
   uint8_t *mAudioBuf{nullptr};
   uint8_t *mAudioBuf1{nullptr};
   int mAudioBufSize{0};

@@ -80,8 +80,8 @@ public:
   FrameQueue() = default;
   FrameQueue(size_t capacity, int type);
   ~FrameQueue() = default;
-  RED_ERR putFrame(std::unique_ptr<CGlobalBuffer> &frame);
-  RED_ERR getFrame(std::unique_ptr<CGlobalBuffer> &frame);
+  RED_ERR putFrame(std::shared_ptr<CGlobalBuffer> &frame);
+  RED_ERR getFrame(std::shared_ptr<CGlobalBuffer> &frame);
   void flush();
   void abort();
   void wakeup();
@@ -91,7 +91,7 @@ private:
   std::mutex mLock;
   std::condition_variable mNotEmptyCond;
   std::condition_variable mNotFullCond;
-  std::queue<std::unique_ptr<CGlobalBuffer>> mFrameQueue;
+  std::queue<std::shared_ptr<CGlobalBuffer>> mFrameQueue;
   size_t mCapacity{FRAME_QUEUE_SIZE};
   bool mAbort{false};
   bool mWakeup{false};
