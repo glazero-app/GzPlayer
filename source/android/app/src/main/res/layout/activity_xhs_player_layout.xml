@@ -90,5 +90,7 @@
             layout="@layout/item_player_drawer_content_layout"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
+
     </LinearLayout>
+
 </androidx.drawerlayout.widget.DrawerLayout>

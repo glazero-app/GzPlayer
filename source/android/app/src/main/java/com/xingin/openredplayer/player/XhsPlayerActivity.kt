@@ -70,6 +70,7 @@ class XhsPlayerActivity : AppCompatActivity(), XhsSectionAdapter.OnSectionItemCl
     private lateinit var videoBottomActionLayout: RelativeLayout
     private lateinit var progressSeekBar: XhsProgressBar
     private lateinit var playPauseButton: ImageView
+    private lateinit var playRecordButton: ImageView
     private lateinit var playNextButton: ImageView
     private lateinit var playSectionButton: TextView
     private lateinit var playHVSwitchBtn: ImageView
@@ -226,6 +227,18 @@ class XhsPlayerActivity : AppCompatActivity(), XhsSectionAdapter.OnSectionItemCl
         }
     }
 
+    /** start or stop record player */
+    private fun startOrStopRecord() {
+        if (videoPlayerView.isRecording) {
+            videoPlayerView.stopRecord()
+            playPauseButton.setBackgroundResource(R.drawable.icon_recording)
+        } else {
+            val path = "/sdcard/Android/data/com.xingin.openredplayercore/output.mp4"
+            videoPlayerView.startRecord(path)
+            playPauseButton.setBackgroundResource(R.drawable.icon_record)
+        }
+    }
+
     /** update activity orientation */
     private fun changeScreenOrientation() {
         requestedOrientation = if (!mIsLandscape) {
@@ -316,6 +329,7 @@ class XhsPlayerActivity : AppCompatActivity(), XhsSectionAdapter.OnSectionItemCl
         voiceSeekBar = findViewById(R.id.voice_seek_bar)
         speedLayout = findViewById(R.id.seep_layout)
         playPauseButton = findViewById(R.id.play_pause_button)
+        playRecordButton = findViewById(R.id.play_record_button)
         playNextButton = findViewById(R.id.play_next_button)
         playSectionButton = findViewById(R.id.video_section_view)
         playHVSwitchBtn = findViewById(R.id.video_screen_switch_btn)
@@ -324,6 +338,9 @@ class XhsPlayerActivity : AppCompatActivity(), XhsSectionAdapter.OnSectionItemCl
         }
         playPauseButton.setOnClickListener {
             pauseOrResume()
+        }
+        playRecordButton.setOnClickListener {
+            startOrStopRecord()
         }
         playNextButton.setOnClickListener {
             playNext()

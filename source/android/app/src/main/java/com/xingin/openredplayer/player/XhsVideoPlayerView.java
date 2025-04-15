@@ -482,6 +482,18 @@ public class XhsVideoPlayerView extends FrameLayout implements MediaController.M
         }
     }
 
+    public void startRecord(String path) {
+        if (isInPlaybackState()) {
+            mMediaPlayer.startRecord(path);
+        }
+    }
+
+    public void stopRecord() {
+        if (isInPlaybackState()) {
+            mMediaPlayer.stopRecord();
+        }
+    }
+
     public void setSpeed(float speed) {
         if (isInPlaybackState()) {
             mMediaPlayer.setSpeed(speed);
@@ -529,6 +541,10 @@ public class XhsVideoPlayerView extends FrameLayout implements MediaController.M
     @Override
     public boolean isPlaying() {
         return isInPlaybackState() && mMediaPlayer.isPlaying();
+    }
+
+    public boolean isRecording() {
+        return isInPlaybackState() && mMediaPlayer.isRecording();
     }
 
     @Override

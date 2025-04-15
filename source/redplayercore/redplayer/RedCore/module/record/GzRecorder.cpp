@@ -34,8 +34,7 @@ GzRecorder::~GzRecorder() {
 // 初始化视频编码器（H.264）
 bool GzRecorder::initVideoEncoder(int width, int height, float fps) {
     // 1. 创建输出上下文
-    int ret = avformat_alloc_output_context2(&mFormatCtx, nullptr, nullptr,
-                                             "/sdcard/Android/data/com.xingin.openredplayercore/output.mp4");
+    int ret = avformat_alloc_output_context2(&mFormatCtx, nullptr, nullptr, mPath.c_str());
     if (ret < 0) {
         AV_LOGE(TAG, "avformat_alloc_output_context2 failed: %d \n", ret);
         return false;
