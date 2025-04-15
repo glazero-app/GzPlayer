@@ -30,7 +30,7 @@ GzRecorder::~GzRecorder() {
 }
 
 // 初始化视频编码器（H.264）
-bool GzRecorder::initVideoEncoder(int width, int height, int fps) {
+bool GzRecorder::initVideoEncoder(int width, int height, float fps) {
     // 1. 创建输出上下文
     int ret = avformat_alloc_output_context2(&mFormatCtx, nullptr, nullptr,
                                              "/sdcard/Android/data/com.xingin.openredplayercore/output.mp4");
@@ -48,7 +48,7 @@ bool GzRecorder::initVideoEncoder(int width, int height, int fps) {
     mVideoCodecCtx->width = width;
     mVideoCodecCtx->height = height;
     mVideoCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
-    mVideoCodecCtx->time_base = {1, fps};
+    mVideoCodecCtx->time_base = {1, static_cast<int>(fps)};
     mVideoCodecCtx->bit_rate = width * height * 4; // 粗略计算码率
     avcodec_open2(mVideoCodecCtx, codec, nullptr);
 
@@ -60,7 +60,7 @@ bool GzRecorder::initVideoEncoder(int width, int height, int fps) {
 }
 
 // 初始化音频编码器（AAC）
-bool GzRecorder::initAudioEncoder(int sampleRate, int channels) {
+bool GzRecorder::initAudioEncoder(int sampleRate, int channels, int sampleFmt) {
     AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
     mAudioStream = avformat_new_stream(mFormatCtx, codec);
 
@@ -68,7 +68,7 @@ bool GzRecorder::initAudioEncoder(int sampleRate, int channels) {
     mAudioCodecCtx->sample_rate = sampleRate;
     mAudioCodecCtx->channel_layout = av_get_default_channel_layout(channels);
     mAudioCodecCtx->channels = channels;
-    mAudioCodecCtx->sample_fmt = AV_SAMPLE_FMT_FLTP;
+    mAudioCodecCtx->sample_fmt = static_cast<AVSampleFormat>(sampleFmt);
     avcodec_open2(mAudioCodecCtx, codec, nullptr);
 
     // 初始化音频重采样器（S16 → FLTP）
@@ -84,9 +84,10 @@ bool GzRecorder::initAudioEncoder(int sampleRate, int channels) {
 }
 
 // 启动编码线程
-void GzRecorder::startRecording() {
+void GzRecorder::startRecording(const std::string& path) {
     if (mIsRecording) return;
     mIsRecording = true;
+    mPath = path;
     mEncodeThread = std::thread(&GzRecorder::encodeLoop, this);
 }
 
@@ -98,6 +99,11 @@ void GzRecorder::stopRecording() {
         mEncodeThread.join();
     }
     releaseResources();
+}
+
+// 录制状态
+bool GzRecorder::isRecording() {
+    return mIsRecording.load();
 }
 
 // 编码线程主循环
@@ -169,11 +175,11 @@ void GzRecorder::encodeLoop() {
 
 // ================== 数据输入方法 ================== //
 void GzRecorder::pushVideoFrame(std::shared_ptr<CGlobalBuffer> buffer) {
-
+    mFrameQueue.putFrame(buffer);
 }
 
 void GzRecorder::pushAudioFrame(std::shared_ptr<CGlobalBuffer> buffer) {
-
+    mFrameQueue.putFrame(buffer);
 }
 
 // ================== 数据转换方法 ================== //

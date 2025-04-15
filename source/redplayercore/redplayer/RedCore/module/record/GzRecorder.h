@@ -31,12 +31,13 @@ REDPLAYER_NS_BEGIN;
         ~GzRecorder();
 
         // 初始化编码器
-        bool initVideoEncoder(int width, int height, int fps);
-        bool initAudioEncoder(int sampleRate, int channels);
+        bool initVideoEncoder(int width, int height, float fps);
+        bool initAudioEncoder(int sampleRate, int channels, int sampleFmt);
 
         // 控制接口
-        void startRecording();
+        void startRecording(const std::string& path);
         void stopRecording();
+        bool isRecording();
 
         // 数据输入（自动深拷贝）
         void pushVideoFrame(std::shared_ptr<CGlobalBuffer> buffer);
@@ -55,6 +56,7 @@ REDPLAYER_NS_BEGIN;
         // 线程控制
         std::thread mEncodeThread;
         FrameQueue mFrameQueue;
+        std::string mPath;
         std::atomic<bool> mIsRecording{false};
         int64_t mAudioPts = 0; // 音频时间戳累加器
 

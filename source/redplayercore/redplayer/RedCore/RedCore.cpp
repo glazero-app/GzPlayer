@@ -242,18 +242,30 @@ RED_ERR CRedCore::stop() {
   return PerformStop();
 }
 
-RED_ERR CRedCore::startRecord(std::string path) {
-    RED_ERR ret = OK;
-    return ret;
+RED_ERR CRedCore::startRecord(const std::string& path) {
+    if (!mMetaData) {
+        return ME_ERROR;
+    }
+    if (mMetaData->video_index >= 0) {
+        TrackInfo video_track = mMetaData->track_info[mMetaData->video_index];
+        float fps = getProp(RED_PROP_FLOAT_VIDEO_FILE_FRAME_RATE, 0.0f);
+        mGzRecorder->initVideoEncoder(video_track.width, video_track.height, fps);
+    }
+    if (mMetaData->audio_index >= 0) {
+        TrackInfo audio_track = mMetaData->track_info[mMetaData->audio_index];
+        mGzRecorder->initAudioEncoder(audio_track.sample_rate, audio_track.channels, audio_track.sample_fmt);
+    }
+    mGzRecorder->startRecording(path);
+    return OK;
 }
 
 RED_ERR CRedCore::stopRecord() {
-    RED_ERR ret = OK;
-    return ret;
+    mGzRecorder->stopRecording();
+    return OK;
 }
 
 bool CRedCore::isRecording() {
-    return false;
+    return mGzRecorder->isRecording();;
 }
 
 RED_ERR CRedCore::getCurrentPosition(int64_t &pos_ms) {

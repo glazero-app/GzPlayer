@@ -47,7 +47,7 @@ public:
   RED_ERR pause();
   RED_ERR seekTo(int64_t msec, bool flush_queue = true);
   RED_ERR stop();
-  RED_ERR startRecord(std::string path);
+  RED_ERR startRecord(const std::string& path);
   RED_ERR stopRecord();
   bool isRecording();
   void release();
