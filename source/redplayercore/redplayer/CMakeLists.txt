@@ -57,13 +57,14 @@ set(SRC_LIST
     base/RedSampler.cpp
     Interface/RedPlayer.cpp
     RedCore/RedCore.cpp
+    RedCore/module/sourcer/format/RedFormat.c
+    RedCore/module/sourcer/format/reddownload_adapter.c
     RedCore/module/sourcer/RedSourceController.cpp
     RedCore/module/processer/AudioProcesser.cpp
     RedCore/module/processer/VideoProcesser.cpp
+    RedCore/module/record/GzRecorder.cpp
     RedCore/module/renderHal/RedRenderAudioHal.cpp
     RedCore/module/renderHal/RedRenderVideoHal.cpp
-    RedCore/module/sourcer/format/RedFormat.c
-    RedCore/module/sourcer/format/reddownload_adapter.c
     RedCore/module/renderHal/SoundTouchHal.cpp
     RedCore/module/renderHal/soundTouch/AAFilter.cpp
     RedCore/module/renderHal/soundTouch/BPMDetect.cpp

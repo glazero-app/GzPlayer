@@ -7,11 +7,13 @@
 
 #include <unistd.h>
 
+extern "C" {
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
 #include "libswresample/swresample.h"
 #include "libavutil/imgutils.h"
+}
 
 #define TAG "GzRecorder"
 
