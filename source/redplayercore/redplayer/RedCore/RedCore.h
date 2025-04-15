@@ -7,6 +7,7 @@
 #include "RedCore/module/renderHal/RedRenderVideoHal.h"
 #include "RedCore/module/sourcer/RedSourceController.h"
 #include "RedCore/module/sourcer/format/redioapplication.h"
+#include "RedCore/module/record/GzRecorder.h"
 #include "RedError.h"
 #include "RedMeta.h"
 #include "RedProp.h"
@@ -46,6 +47,9 @@ public:
   RED_ERR pause();
   RED_ERR seekTo(int64_t msec, bool flush_queue = true);
   RED_ERR stop();
+  RED_ERR startRecord(std::string path);
+  RED_ERR stopRecord();
+  bool isRecording();
   void release();
   status_t getCurrentPosition(int64_t &pos_ms);
   status_t getDuration(int64_t &dur_ms);
@@ -119,10 +123,15 @@ private:
   int64_t mFd{-1};
 
   sp<CRedSourceController> mRedSourceController;
+
   sp<CVideoProcesser> mVideoProcesser;
   sp<CAudioProcesser> mAudioProcesser;
+
   sp<CRedRenderVideoHal> mRedRenderVideoHal;
   sp<CRedRenderAudioHal> mRedRenderAudioHal;
+
+  sp<GzRecorder> mGzRecorder;
+
   sp<CoreGeneralConfig> mGeneralConfig;
   sp<MetaData> mMetaData;
   sp<RedDict> mFormatConfig;

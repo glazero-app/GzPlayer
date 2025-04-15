@@ -242,6 +242,20 @@ RED_ERR CRedCore::stop() {
   return PerformStop();
 }
 
+RED_ERR CRedCore::startRecord(std::string path) {
+    RED_ERR ret = OK;
+    return ret;
+}
+
+RED_ERR CRedCore::stopRecord() {
+    RED_ERR ret = OK;
+    return ret;
+}
+
+bool CRedCore::isRecording() {
+    return false;
+}
+
 RED_ERR CRedCore::getCurrentPosition(int64_t &pos_ms) {
   auto source_controller = mRedSourceController;
   int64_t start_time_ms = 0;

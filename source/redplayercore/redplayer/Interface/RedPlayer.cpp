@@ -334,17 +334,22 @@ RED_ERR CRedPlayer::stop() {
 }
 
 RED_ERR CRedPlayer::startRecord(std::string path) {
+    AV_LOGD_ID(TAG, mID, "%s\n", __func__);
     RED_ERR ret = OK;
+    ret = mRedCore->startRecord(path);
     return ret;
 }
 
 RED_ERR CRedPlayer::stopRecord() {
+    AV_LOGD_ID(TAG, mID, "%s\n", __func__);
     RED_ERR ret = OK;
+    ret = mRedCore->stopRecord();
     return ret;
 }
 
 bool CRedPlayer::isRecording() {
-    return false;
+    bool isRecording = mRedCore->isRecording();
+    return isRecording;
 }
 
 void CRedPlayer::release() {
