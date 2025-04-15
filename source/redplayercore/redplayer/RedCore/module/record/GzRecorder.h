@@ -27,8 +27,11 @@ REDPLAYER_NS_BEGIN;
  */
     class GzRecorder {
     public:
-        GzRecorder();
+        GzRecorder(int id);
         ~GzRecorder();
+
+        // 初始化容器上下文
+        bool init(const std::string &path);
 
         // 初始化编码器
         bool initVideoEncoder(int width, int height, float fps);
@@ -44,6 +47,7 @@ REDPLAYER_NS_BEGIN;
         void pushAudioFrame(std::shared_ptr<CGlobalBuffer> buffer);
 
     private:
+        const int mID{0};
         // FFmpeg 核心对象
         AVFormatContext* mFormatCtx = nullptr;
         AVCodecContext* mVideoCodecCtx = nullptr;
@@ -56,7 +60,6 @@ REDPLAYER_NS_BEGIN;
         // 线程控制
         std::thread mEncodeThread;
         FrameQueue mFrameQueue;
-        std::string mPath;
         std::atomic<bool> mIsRecording{false};
         int64_t mAudioPts = 0; // 音频时间戳累加器
 

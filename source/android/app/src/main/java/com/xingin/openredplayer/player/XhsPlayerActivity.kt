@@ -37,6 +37,7 @@ import com.xingin.openredplayer.player.sensor.XhsOrientationListener
 import com.xingin.openredplayer.setting.XhsPlayerSettings
 import com.xingin.openredplayer.utils.Utils
 import com.xingin.openredplayercore.core.api.IMediaPlayer
+import java.io.File
 import kotlin.math.max
 import kotlin.math.min
 
@@ -231,11 +232,17 @@ class XhsPlayerActivity : AppCompatActivity(), XhsSectionAdapter.OnSectionItemCl
     private fun startOrStopRecord() {
         if (videoPlayerView.isRecording) {
             videoPlayerView.stopRecord()
-            playPauseButton.setBackgroundResource(R.drawable.icon_recording)
+            playRecordButton.setBackgroundResource(R.drawable.icon_recording)
         } else {
-            val path = "/sdcard/Android/data/com.xingin.openredplayercore/output.mp4"
-            videoPlayerView.startRecord(path)
-            playPauseButton.setBackgroundResource(R.drawable.icon_record)
+            val path = "/sdcard/Android/data/com.xingin.openredplayer/"
+            val directory = File(path)
+            if (directory.exists() && directory.isDirectory) {
+                Log.d("TAG", "文件夹存在")
+                videoPlayerView.startRecord(path + "output.mp4")
+                playRecordButton.setBackgroundResource(R.drawable.icon_record)
+            } else {
+                Log.w("TAG", "文件夹不存在")
+            }
         }
     }
 

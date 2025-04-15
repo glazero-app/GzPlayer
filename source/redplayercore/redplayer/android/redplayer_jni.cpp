@@ -672,6 +672,8 @@ static void RedPlayer_startRecord(JNIEnv *env, jobject thiz, jstring path) {
     JNI_CHECK_RET_VOID(mp, env, JAVA_ILLEGAL_STATE_EXCEPTION,"mpjni: startRecord: null mp");
 
     std::string c_path = JniGetStringUTFCharsCatchAll(env, path);
+    JNI_CHECK_RET_VOID(!c_path.empty(), env, nullptr,
+                       "mpjni: setVideoCacheDir: dir.string oom");
     mp->startRecord(c_path);
 }
 

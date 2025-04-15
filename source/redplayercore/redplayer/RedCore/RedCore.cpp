@@ -118,6 +118,7 @@ CRedCore::~CRedCore() {
   mRedRenderAudioHal.reset();
   mVideoProcesser.reset();
   mAudioProcesser.reset();
+  mGzRecorder.reset();
   mRedSourceController.reset();
   resetConfigs();
 }
@@ -151,6 +152,7 @@ RED_ERR CRedCore::init() {
         mID, mAudioProcesser, mVideoState, notify_cb);
     mRedRenderVideoHal = std::make_shared<CRedRenderVideoHal>(
         mID, mVideoProcesser, mVideoState, notify_cb);
+    mGzRecorder = std::make_shared<GzRecorder>(mID);
     mAppCtx = reinterpret_cast<RedApplicationContext *>(
         malloc(sizeof(RedApplicationContext)));
   } catch (const std::bad_alloc &e) {
@@ -243,7 +245,13 @@ RED_ERR CRedCore::stop() {
 }
 
 RED_ERR CRedCore::startRecord(const std::string& path) {
+    if(mGzRecorder->init(path)){
+        AV_LOGE_ID(TAG, mID, "%s,%d\n", __func__,__LINE__);
+        return ME_ERROR;
+    }
+
     if (!mMetaData) {
+        AV_LOGE_ID(TAG, mID, "%s,%d\n", __func__,__LINE__);
         return ME_ERROR;
     }
     if (mMetaData->video_index >= 0) {

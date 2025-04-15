@@ -6,6 +6,7 @@
 #include "RedLog.h"
 
 #include <unistd.h>
+#include <sys/stat.h>
 
 extern "C" {
 #include "libavcodec/avcodec.h"
@@ -19,10 +20,11 @@ extern "C" {
 
 REDPLAYER_NS_BEGIN;
 
-GzRecorder::GzRecorder() {
+GzRecorder::GzRecorder(int id): mID(id) {
     // 初始化FFmpeg库（线程安全）
     static std::once_flag ffmpeg_init_flag;
     std::call_once(ffmpeg_init_flag, [](){
+        av_register_all();
         avformat_network_init();
     });
 }
@@ -31,20 +33,28 @@ GzRecorder::~GzRecorder() {
     stopRecording();
 }
 
-// 初始化视频编码器（H.264）
-bool GzRecorder::initVideoEncoder(int width, int height, float fps) {
+bool GzRecorder::init(const std::string &path) {
+    AVOutputFormat* ofmt = av_oformat_next(nullptr);
+    while (ofmt) {
+        AV_LOGI(TAG, "Supported format: %s (%s)", ofmt->name, ofmt->long_name);
+        ofmt = av_oformat_next(ofmt);
+    }
     // 1. 创建输出上下文
-    int ret = avformat_alloc_output_context2(&mFormatCtx, nullptr, nullptr, mPath.c_str());
+    int ret = avformat_alloc_output_context2(&mFormatCtx, nullptr, nullptr, path.c_str());
     if (ret < 0) {
-        AV_LOGE(TAG, "avformat_alloc_output_context2 failed: %d \n", ret);
+        AV_LOGE_ID(TAG, mID, "avformat_alloc_output_context2 failed: %d \n", ret);
         return false;
     }
+    return true;
+}
 
-    // 2. 添加视频流
+// 初始化视频编码器（H.264）
+bool GzRecorder::initVideoEncoder(int width, int height, float fps) {
+    // 1. 添加视频流
     AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_H264);
     mVideoStream = avformat_new_stream(mFormatCtx, codec);
 
-    // 3. 配置编码参数
+    // 2. 配置编码参数
     mVideoCodecCtx = avcodec_alloc_context3(codec);
     mVideoCodecCtx->width = width;
     mVideoCodecCtx->height = height;
@@ -53,7 +63,7 @@ bool GzRecorder::initVideoEncoder(int width, int height, float fps) {
     mVideoCodecCtx->bit_rate = width * height * 4; // 粗略计算码率
     avcodec_open2(mVideoCodecCtx, codec, nullptr);
 
-    // 4. 初始化像素转换器
+    // 3. 初始化像素转换器
     mVideoSwsCtx = sws_getContext(width, height, AV_PIX_FMT_YUV420P10LE,
                                   width, height, AV_PIX_FMT_YUV420P,
                                   SWS_BILINEAR, nullptr, nullptr, nullptr);
@@ -86,9 +96,9 @@ bool GzRecorder::initAudioEncoder(int sampleRate, int channels, int sampleFmt) {
 
 // 启动编码线程
 void GzRecorder::startRecording(const std::string& path) {
+    AV_LOGD_ID(TAG, mID, "startRecord path = %s", path.c_str());
     if (mIsRecording) return;
     mIsRecording = true;
-    mPath = path;
     mEncodeThread = std::thread(&GzRecorder::encodeLoop, this);
 }
 
@@ -112,14 +122,14 @@ void GzRecorder::encodeLoop() {
     // 打开输出文件
     int ret = avio_open(&mFormatCtx->pb, mFormatCtx->url, AVIO_FLAG_WRITE);
     if (ret < 0) {
-        AV_LOGE(TAG, "Failed to open output file\n");
+        AV_LOGE_ID(TAG, mID, "Failed to open output file\n");
         return;
     }
 
     // 写入文件头
     ret = avformat_write_header(mFormatCtx, nullptr);
     if (ret < 0) {
-        AV_LOGE(TAG, "Failed to write header: %d\n", ret);
+        AV_LOGE_ID(TAG, mID, "Failed to write header: %d\n", ret);
         return;
     }
 
@@ -235,7 +245,7 @@ AVFrame* GzRecorder::convertVideoFrame(std::shared_ptr<CGlobalBuffer> buffer) {
             break;
         }
         default:
-            AV_LOGE(TAG, "Unsupported video format: %d", buffer->pixel_format);
+            AV_LOGE_ID(TAG, mID, "Unsupported video format: %d", buffer->pixel_format);
             av_frame_free(&frame);
             return nullptr;
     }
@@ -276,7 +286,7 @@ void GzRecorder::writePackets(AVCodecContext* codecCtx, AVStream* stream) {
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
             break;
         } else if (ret < 0) {
-            AV_LOGE(TAG, "Error receiving packet: %d", ret);
+            AV_LOGE_ID(TAG, mID, "Error receiving packet: %d", ret);
             break;
         }
 
@@ -286,7 +296,7 @@ void GzRecorder::writePackets(AVCodecContext* codecCtx, AVStream* stream) {
 
         // 写入文件
         if (av_interleaved_write_frame(mFormatCtx, &pkt) < 0) {
-            AV_LOGE(TAG, "Error writing packet");
+            AV_LOGE_ID(TAG, mID, "Error writing packet");
         }
 
         av_packet_unref(&pkt);
