@@ -234,7 +234,7 @@ class XhsPlayerActivity : AppCompatActivity(), XhsSectionAdapter.OnSectionItemCl
             videoPlayerView.stopRecord()
             playRecordButton.setBackgroundResource(R.drawable.icon_record)
         } else {
-            val path = "/sdcard/Android/data/com.xingin.openredplayer/"
+            val path = "/sdcard/DCIM/gzplayer/"
             val directory = File(path)
             if (directory.exists() && directory.isDirectory) {
                 Log.d(TAG, "文件夹存在")

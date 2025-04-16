@@ -272,12 +272,9 @@ REDPLAYER_NS_BEGIN;
                 // 处理视频编码输出
                 AMediaCodecBufferInfo info;
                 ssize_t outIndex = AMediaCodec_dequeueOutputBuffer(mVideoCodec, &info, 0);
-                AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                 while (outIndex >= 0) {
-                    AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                     // 处理编解码器配置数据
                     if (!muxerStarted && (info.flags & AMEDIACODEC_BUFFER_FLAG_CODEC_CONFIG)) {
-                        AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                         AMediaFormat* format = AMediaCodec_getOutputFormat(mVideoCodec);
                         videoTrackIndex = AMediaMuxer_addTrack(mMuxer, format);
                         AMediaFormat_delete(format);
@@ -290,23 +287,19 @@ REDPLAYER_NS_BEGIN;
                     }
                     // 写入有效视频数据
                     else if (muxerStarted && info.size > 0) {
-                        AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                         uint8_t* encodedData = AMediaCodec_getOutputBuffer(mVideoCodec, outIndex, nullptr);
                         if (encodedData) {
-                            AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                             AMediaMuxer_writeSampleData(mMuxer,videoTrackIndex,encodedData,&info);
                         }
                     }
 
                     // 关键帧标记（可选）
-                    AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                     if (info.flags & 0x1) {
                         AV_LOGD_ID(TAG, mID, "Video keyframe generated at %ld us", info.presentationTimeUs);
                     }
 
                     AMediaCodec_releaseOutputBuffer(mVideoCodec, outIndex, false);
                     outIndex = AMediaCodec_dequeueOutputBuffer(mVideoCodec, &info, 0);
-                    AV_LOGI_ID(TAG, mID, "%s, outIndex=%zd\n", __func__, outIndex);
                 }
             }
         }
