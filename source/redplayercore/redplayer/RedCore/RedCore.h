@@ -124,13 +124,13 @@ private:
 
   sp<CRedSourceController> mRedSourceController;
 
+  sp<GzRecorder> mGzRecorder;
+
   sp<CVideoProcesser> mVideoProcesser;
   sp<CAudioProcesser> mAudioProcesser;
 
   sp<CRedRenderVideoHal> mRedRenderVideoHal;
   sp<CRedRenderAudioHal> mRedRenderAudioHal;
-
-  sp<GzRecorder> mGzRecorder;
 
   sp<CoreGeneralConfig> mGeneralConfig;
   sp<MetaData> mMetaData;

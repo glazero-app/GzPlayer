@@ -15,9 +15,10 @@
 REDPLAYER_NS_BEGIN;
 
 CRedRenderAudioHal::CRedRenderAudioHal(int id, sp<CAudioProcesser> &processer,
+                                       sp<GzRecorder> &recorder,
                                        const sp<VideoState> &state,
                                        NotifyCallback notify_cb)
-    : mID(id), mAudioProcesser(processer), mVideoState(state),
+    : mID(id), mAudioProcesser(processer), mGzRecorder(recorder), mVideoState(state),
       mNotifyCb(notify_cb) {
   mAudioBuffer = std::make_unique<CGlobalBuffer>();
 }
@@ -397,6 +398,9 @@ void CRedRenderAudioHal::GetAudioData(char *data, int &len) {
         }
       }
       lck.lock();
+      if (mGzRecorder->isRecording()) {
+          mGzRecorder->pushAudioFrame(buffer);
+      }
       mAudioBuffer = std::move(buffer);
       mAudioBufSize = resampled_data_size;
     }

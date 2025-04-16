@@ -148,11 +148,11 @@ RED_ERR CRedCore::init() {
         mID, mRedSourceController, mVideoState, notify_cb);
     mAudioProcesser = std::make_shared<CAudioProcesser>(
         mID, mRedSourceController, mVideoState, notify_cb);
-    mRedRenderAudioHal = std::make_shared<CRedRenderAudioHal>(
-        mID, mAudioProcesser, mVideoState, notify_cb);
-    mRedRenderVideoHal = std::make_shared<CRedRenderVideoHal>(
-        mID, mVideoProcesser, mVideoState, notify_cb);
     mGzRecorder = std::make_shared<GzRecorder>(mID);
+    mRedRenderAudioHal = std::make_shared<CRedRenderAudioHal>(
+        mID, mAudioProcesser, mGzRecorder, mVideoState, notify_cb);
+    mRedRenderVideoHal = std::make_shared<CRedRenderVideoHal>(
+        mID, mVideoProcesser, mGzRecorder, mVideoState, notify_cb);
     mAppCtx = reinterpret_cast<RedApplicationContext *>(
         malloc(sizeof(RedApplicationContext)));
   } catch (const std::bad_alloc &e) {

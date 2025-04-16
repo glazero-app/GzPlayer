@@ -5,6 +5,7 @@
 #include "RedError.h"
 
 #include "RedCore/module/processer/VideoProcesser.h"
+#include "RedCore/module/record/GzRecorder.h"
 #include "base/RedBuffer.h"
 #include "base/RedClock.h"
 #include "base/RedQueue.h"
@@ -42,7 +43,7 @@ enum { RENDER_TYPE_OPENGL = 0, RENDER_TYPE_METAL = 1, RENDER_TYPE_AVSBDL = 2 };
 
 class CRedRenderVideoHal : public CRedThreadBase {
 public:
-  CRedRenderVideoHal(int id, sp<CVideoProcesser> &processer,
+  CRedRenderVideoHal(int id, sp<CVideoProcesser> &processer, sp<GzRecorder> &recorder,
                      const sp<VideoState> &state, NotifyCallback notify_cb);
   ~CRedRenderVideoHal();
   RED_ERR Prepare(sp<MetaData> &metadata);
@@ -102,6 +103,7 @@ private:
   bool mRenderSetuped{false};
   sp<CoreGeneralConfig> mGeneralConfig;
   sp<CVideoProcesser> mVideoProcesser;
+  sp<GzRecorder> mGzRecorder;
   sp<MetaData> mMetaData;
   sp<VideoState> mVideoState;
   NotifyCallback mNotifyCb;

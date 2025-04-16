@@ -80,9 +80,9 @@ REDPLAYER_NS_BEGIN;
         AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_WIDTH, width);
         AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_HEIGHT, height);
         AMediaFormat_setFloat(mVideoFormat, AMEDIAFORMAT_KEY_FRAME_RATE, fps);
-        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_COLOR_FORMAT, 0x7F000100); // Flexible YUV
+//        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_COLOR_FORMAT, 0x7F000100); // Flexible YUV，这行有问题
         AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_BIT_RATE, width * height * 4);
-        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_I_FRAME_INTERVAL, 1);
+        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_I_FRAME_INTERVAL, 2);
 
         mVideoCodec = AMediaCodec_createEncoderByType("video/avc");
         AMediaCodec_configure(mVideoCodec, mVideoFormat, nullptr, nullptr,
@@ -118,7 +118,7 @@ REDPLAYER_NS_BEGIN;
         AV_LOGI_ID(TAG, mID, "%s\n", __func__);
 #if defined(__ANDROID__)
         mAudioFormat = AMediaFormat_new();
-        AMediaFormat_setString(mAudioFormat, AMEDIAFORMAT_KEY_MIME, "audio/mp4a-latm");
+        AMediaFormat_setString(mAudioFormat, "mime", "audio/mp4a-latm");
         AMediaFormat_setInt32(mAudioFormat, AMEDIAFORMAT_KEY_SAMPLE_RATE, sampleRate);
         AMediaFormat_setInt32(mAudioFormat, AMEDIAFORMAT_KEY_CHANNEL_COUNT, channels);
         AMediaFormat_setInt32(mAudioFormat, AMEDIAFORMAT_KEY_BIT_RATE, 64000);
@@ -177,12 +177,12 @@ REDPLAYER_NS_BEGIN;
     }
 
     void GzRecorder::pushVideoFrame(std::shared_ptr<CGlobalBuffer> buffer) {
-        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
+//        AV_LOGI_ID(TAG, mID, "%s, buffer.size=%ld\n", __func__, buffer->datasize);
         mFrameQueue.putFrame(buffer);
     }
 
     void GzRecorder::pushAudioFrame(std::shared_ptr<CGlobalBuffer> buffer) {
-        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
+//        AV_LOGI_ID(TAG, mID, "%s, buffer.size=%ld\n", __func__, buffer->datasize);
         mFrameQueue.putFrame(buffer);
     }
 
@@ -243,15 +243,17 @@ REDPLAYER_NS_BEGIN;
             } else {
                 // ================= 视频帧处理逻辑 =================
                 ssize_t inIndex = AMediaCodec_dequeueInputBuffer(mVideoCodec, 2000);
+                AV_LOGI_ID(TAG, mID, "%s, inIndex=%zd\n", __func__, inIndex);
                 if (inIndex >= 0) {
                     size_t bufSize;
                     uint8_t* dstBuf = AMediaCodec_getInputBuffer(mVideoCodec, inIndex, &bufSize);
 
+                    AV_LOGI_ID(TAG, mID, "%s, buffer->pixel_format=%d\n", __func__, buffer->pixel_format);
                     if (dstBuf) {
                         bool copySuccess = false;
                         switch (buffer->pixel_format) {
-                            case CGlobalBuffer::kYUVJ420P:
                             case CGlobalBuffer::kYUV420:
+                            case CGlobalBuffer::kYUVJ420P:
                                 copySuccess = copyYUV420PToEncoder(dstBuf, buffer, bufSize);
                                 break;
                             case CGlobalBuffer::kMediaCodecBuffer:  // Android硬解数据
@@ -270,9 +272,12 @@ REDPLAYER_NS_BEGIN;
                 // 处理视频编码输出
                 AMediaCodecBufferInfo info;
                 ssize_t outIndex = AMediaCodec_dequeueOutputBuffer(mVideoCodec, &info, 0);
+                AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                 while (outIndex >= 0) {
+                    AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                     // 处理编解码器配置数据
                     if (!muxerStarted && (info.flags & AMEDIACODEC_BUFFER_FLAG_CODEC_CONFIG)) {
+                        AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                         AMediaFormat* format = AMediaCodec_getOutputFormat(mVideoCodec);
                         videoTrackIndex = AMediaMuxer_addTrack(mMuxer, format);
                         AMediaFormat_delete(format);
@@ -283,21 +288,25 @@ REDPLAYER_NS_BEGIN;
                             muxerStarted = true;
                         }
                     }
-                        // 写入有效视频数据
+                    // 写入有效视频数据
                     else if (muxerStarted && info.size > 0) {
+                        AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                         uint8_t* encodedData = AMediaCodec_getOutputBuffer(mVideoCodec, outIndex, nullptr);
                         if (encodedData) {
+                            AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                             AMediaMuxer_writeSampleData(mMuxer,videoTrackIndex,encodedData,&info);
                         }
                     }
 
                     // 关键帧标记（可选）
+                    AV_LOGI_ID(TAG, mID, "%s, %d\n", __func__, __LINE__);
                     if (info.flags & 0x1) {
                         AV_LOGD_ID(TAG, mID, "Video keyframe generated at %ld us", info.presentationTimeUs);
                     }
 
                     AMediaCodec_releaseOutputBuffer(mVideoCodec, outIndex, false);
                     outIndex = AMediaCodec_dequeueOutputBuffer(mVideoCodec, &info, 0);
+                    AV_LOGI_ID(TAG, mID, "%s, outIndex=%zd\n", __func__, outIndex);
                 }
             }
         }
@@ -328,13 +337,13 @@ REDPLAYER_NS_BEGIN;
         // 检查目标缓冲区大小
         size_t requiredSize = buffer->width * buffer->height * 3 / 2;  // YUV420P总大小
         if (dstSize < requiredSize) {
-            AV_LOGE_ID(TAG, buffer->serial, "Buffer too small: %zu < %zu", dstSize, requiredSize);
+            AV_LOGE_ID(TAG, mID, "Buffer too small: %zu < %zu", dstSize, requiredSize);
             return false;
         }
 
         // 检查源数据完整性
         if (!buffer->yBuffer || !buffer->uBuffer || !buffer->vBuffer) {
-            AV_LOGE_ID(TAG, buffer->serial, "Invalid YUV420P buffers");
+            AV_LOGE_ID(TAG, mID, "Invalid YUV420P buffers");
             return false;
         }
 
@@ -355,7 +364,7 @@ REDPLAYER_NS_BEGIN;
     bool GzRecorder::handleMediaCodecBuffer(const std::shared_ptr<CGlobalBuffer>& buffer, AMediaCodec* codec, int index) {
         auto* ctx = static_cast<CGlobalBuffer::MediaCodecBufferContext*>(buffer->opaque);
         if (!ctx || !ctx->release_output_buffer) {
-            AV_LOGE_ID(TAG, buffer->serial, "Invalid MediaCodec context");
+            AV_LOGE_ID(TAG, mID, "Invalid MediaCodec context");
             return false;
         }
 

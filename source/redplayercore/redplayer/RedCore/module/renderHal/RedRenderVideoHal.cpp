@@ -22,9 +22,10 @@
 REDPLAYER_NS_BEGIN ;
 
     CRedRenderVideoHal::CRedRenderVideoHal(int id, sp<CVideoProcesser> &processer,
+                                           sp<GzRecorder> &recorder,
                                            const sp<VideoState> &state,
                                            NotifyCallback notify_cb)
-            : mID(id), mVideoProcesser(processer), mVideoState(state),
+            : mID(id), mVideoProcesser(processer), mGzRecorder(recorder), mVideoState(state),
               mNotifyCb(notify_cb) {}
 
     CRedRenderVideoHal::~CRedRenderVideoHal() {
@@ -859,6 +860,9 @@ REDPLAYER_NS_BEGIN ;
                 }
 
                 // 5. 执行渲染
+                if (mGzRecorder->isRecording()) {
+                    mGzRecorder->pushVideoFrame(in_buffer_);
+                }
                 RenderFrame(in_buffer_);
                 mForceRefresh = false;
                 break;

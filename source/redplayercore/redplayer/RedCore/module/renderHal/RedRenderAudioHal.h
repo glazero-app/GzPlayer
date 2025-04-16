@@ -5,6 +5,7 @@
 #include "RedError.h"
 
 #include "RedCore/module/processer/AudioProcesser.h"
+#include "RedCore/module/record/GzRecorder.h"
 #include "SoundTouchHal.h"
 #include "base/RedBuffer.h"
 #include "base/RedClock.h"
@@ -60,7 +61,7 @@ private:
 
 class CRedRenderAudioHal : public CRedThreadBase {
 public:
-  CRedRenderAudioHal(int id, sp<CAudioProcesser> &processer,
+  CRedRenderAudioHal(int id, sp<CAudioProcesser> &processer, sp<GzRecorder> &recorder,
                      const sp<VideoState> &state, NotifyCallback notify_cb);
   ~CRedRenderAudioHal();
   virtual void ThreadFunc();
@@ -100,6 +101,7 @@ private:
 private:
   const int mID{0};
   sp<CAudioProcesser> mAudioProcesser;
+  sp<GzRecorder> mGzRecorder;
   std::mutex mLock;
   std::mutex mNotifyCbLock;
   std::condition_variable mCond;
