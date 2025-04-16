@@ -245,7 +245,7 @@ RED_ERR CRedCore::stop() {
 }
 
 RED_ERR CRedCore::startRecord(const std::string& path) {
-    if(mGzRecorder->init(path)){
+    if(!mGzRecorder->init(path)){
         AV_LOGE_ID(TAG, mID, "%s,%d\n", __func__,__LINE__);
         return ME_ERROR;
     }

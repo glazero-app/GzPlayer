@@ -237,11 +237,11 @@ class XhsPlayerActivity : AppCompatActivity(), XhsSectionAdapter.OnSectionItemCl
             val path = "/sdcard/Android/data/com.xingin.openredplayer/"
             val directory = File(path)
             if (directory.exists() && directory.isDirectory) {
-                Log.d("TAG", "文件夹存在")
+                Log.d(TAG, "文件夹存在")
                 videoPlayerView.startRecord(path + "output.mp4")
                 playRecordButton.setBackgroundResource(R.drawable.icon_record)
             } else {
-                Log.w("TAG", "文件夹不存在")
+                Log.w(TAG, "文件夹不存在")
             }
         }
     }

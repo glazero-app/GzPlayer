@@ -39,6 +39,7 @@ REDPLAYER_NS_BEGIN;
     }
 
     bool GzRecorder::init(const std::string &path) {
+        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
 #if defined(__ANDROID__)
         // 以读写模式打开文件（如果文件不存在则创建）
         int flags = O_CREAT | O_RDWR | O_CLOEXEC;
@@ -49,6 +50,7 @@ REDPLAYER_NS_BEGIN;
         }
         mMuxer = AMediaMuxer_new(fd, AMEDIAMUXER_OUTPUT_FORMAT_MPEG_4);
         if (!mMuxer) {
+            AV_LOGE_ID(TAG, mID, "mMuxer: %s", strerror(errno));
             close(fd);
             return false;
         }
@@ -69,6 +71,7 @@ REDPLAYER_NS_BEGIN;
     }
 
     bool GzRecorder::initVideoEncoder(int width, int height, float fps) {
+        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
 #if defined(__ANDROID__)
         mVideoFormat = AMediaFormat_new();
         AMediaFormat_setString(mVideoFormat, AMEDIAFORMAT_KEY_MIME, "video/avc");
@@ -110,6 +113,7 @@ REDPLAYER_NS_BEGIN;
     }
 
     bool GzRecorder::initAudioEncoder(int sampleRate, int channels, int sampleFmt) {
+        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
 #if defined(__ANDROID__)
         mAudioFormat = AMediaFormat_new();
         AMediaFormat_setString(mAudioFormat, AMEDIAFORMAT_KEY_MIME, "audio/mp4a-latm");
@@ -150,12 +154,14 @@ REDPLAYER_NS_BEGIN;
     }
 
     void GzRecorder::startRecording() {
+        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
         if (mIsRecording) return;
         mIsRecording = true;
         mEncodeThread = std::thread(&GzRecorder::encodeLoop, this);
     }
 
     void GzRecorder::stopRecording() {
+        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
         mIsRecording = false;
         if (mEncodeThread.joinable()) {
             mFrameQueue.abort();
@@ -169,14 +175,17 @@ REDPLAYER_NS_BEGIN;
     }
 
     void GzRecorder::pushVideoFrame(std::shared_ptr<CGlobalBuffer> buffer) {
+        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
         mFrameQueue.putFrame(buffer);
     }
 
     void GzRecorder::pushAudioFrame(std::shared_ptr<CGlobalBuffer> buffer) {
+        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
         mFrameQueue.putFrame(buffer);
     }
 
     void GzRecorder::encodeLoop() {
+        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
 #if defined(__ANDROID__)
         androidEncodeLoop();
 #endif
@@ -384,6 +393,7 @@ void GzRecorder::processAppleVideoFrame(CGlobalBuffer* buffer) {
 #endif
 
     void GzRecorder::releaseResources() {
+        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
 #if defined(__ANDROID__)
         if (mMuxer) AMediaMuxer_delete(mMuxer);
         if (mVideoCodec) AMediaCodec_delete(mVideoCodec);
