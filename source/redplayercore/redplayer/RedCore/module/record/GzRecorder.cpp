@@ -208,7 +208,7 @@ REDPLAYER_NS_BEGIN;
             if (!buffer) continue;
 
             if (buffer->pixel_format == CGlobalBuffer::kAudio) {
-                // 处理音频帧
+                // ================= 音频帧处理逻辑 =================
                 ssize_t inIndex = AMediaCodec_dequeueInputBuffer(mAudioCodec, 2000);
                 if (inIndex >= 0) {
                     size_t bufSize;
@@ -241,8 +241,64 @@ REDPLAYER_NS_BEGIN;
                     AMediaCodec_releaseOutputBuffer(mAudioCodec, outIndex, false);
                 }
             } else {
-                // 处理视频帧（逻辑类似）
-                // ...
+                // ================= 视频帧处理逻辑 =================
+                ssize_t inIndex = AMediaCodec_dequeueInputBuffer(mVideoCodec, 2000);
+                if (inIndex >= 0) {
+                    size_t bufSize;
+                    uint8_t* dstBuf = AMediaCodec_getInputBuffer(mVideoCodec, inIndex, &bufSize);
+
+                    if (dstBuf) {
+                        bool copySuccess = false;
+                        switch (buffer->pixel_format) {
+                            case CGlobalBuffer::kYUVJ420P:
+                            case CGlobalBuffer::kYUV420:
+                                copySuccess = copyYUV420PToEncoder(dstBuf, buffer, bufSize);
+                                break;
+                            case CGlobalBuffer::kMediaCodecBuffer:  // Android硬解数据
+                                copySuccess = handleMediaCodecBuffer(buffer, mVideoCodec, inIndex);
+                                break;
+                            default:
+                                AV_LOGE_ID(TAG, mID, "Unsupported pixel format: %d", buffer->pixel_format);
+                        }
+
+                        if (copySuccess) {
+                            AMediaCodec_queueInputBuffer(mVideoCodec,inIndex,0,bufSize,buffer->pts / 1000,0);
+                        }
+                    }
+                }
+
+                // 处理视频编码输出
+                AMediaCodecBufferInfo info;
+                ssize_t outIndex = AMediaCodec_dequeueOutputBuffer(mVideoCodec, &info, 0);
+                while (outIndex >= 0) {
+                    // 处理编解码器配置数据
+                    if (!muxerStarted && (info.flags & AMEDIACODEC_BUFFER_FLAG_CODEC_CONFIG)) {
+                        AMediaFormat* format = AMediaCodec_getOutputFormat(mVideoCodec);
+                        videoTrackIndex = AMediaMuxer_addTrack(mMuxer, format);
+                        AMediaFormat_delete(format);
+
+                        // 如果音视频轨道都已就绪，启动复用器
+                        if (audioTrackIndex >= 0 && videoTrackIndex >= 0) {
+                            AMediaMuxer_start(mMuxer);
+                            muxerStarted = true;
+                        }
+                    }
+                        // 写入有效视频数据
+                    else if (muxerStarted && info.size > 0) {
+                        uint8_t* encodedData = AMediaCodec_getOutputBuffer(mVideoCodec, outIndex, nullptr);
+                        if (encodedData) {
+                            AMediaMuxer_writeSampleData(mMuxer,videoTrackIndex,encodedData,&info);
+                        }
+                    }
+
+                    // 关键帧标记（可选）
+                    if (info.flags & 0x1) {
+                        AV_LOGD_ID(TAG, mID, "Video keyframe generated at %ld us", info.presentationTimeUs);
+                    }
+
+                    AMediaCodec_releaseOutputBuffer(mVideoCodec, outIndex, false);
+                    outIndex = AMediaCodec_dequeueOutputBuffer(mVideoCodec, &info, 0);
+                }
             }
         }
 
@@ -267,6 +323,47 @@ REDPLAYER_NS_BEGIN;
         }
 #endif
     }
+
+    bool GzRecorder::copyYUV420PToEncoder(uint8_t* dst, const std::shared_ptr<CGlobalBuffer>& buffer, size_t dstSize) {
+        // 检查目标缓冲区大小
+        size_t requiredSize = buffer->width * buffer->height * 3 / 2;  // YUV420P总大小
+        if (dstSize < requiredSize) {
+            AV_LOGE_ID(TAG, buffer->serial, "Buffer too small: %zu < %zu", dstSize, requiredSize);
+            return false;
+        }
+
+        // 检查源数据完整性
+        if (!buffer->yBuffer || !buffer->uBuffer || !buffer->vBuffer) {
+            AV_LOGE_ID(TAG, buffer->serial, "Invalid YUV420P buffers");
+            return false;
+        }
+
+        // 拷贝Y平面
+        memcpy(dst, buffer->yBuffer, buffer->width * buffer->height);
+
+        // 拷贝U平面
+        uint8_t* dstU = dst + buffer->width * buffer->height;
+        memcpy(dstU, buffer->uBuffer, buffer->width * buffer->height / 4);
+
+        // 拷贝V平面
+        uint8_t* dstV = dstU + buffer->width * buffer->height / 4;
+        memcpy(dstV, buffer->vBuffer, buffer->width * buffer->height / 4);
+
+        return true;
+    }
+
+    bool GzRecorder::handleMediaCodecBuffer(const std::shared_ptr<CGlobalBuffer>& buffer, AMediaCodec* codec, int index) {
+        auto* ctx = static_cast<CGlobalBuffer::MediaCodecBufferContext*>(buffer->opaque);
+        if (!ctx || !ctx->release_output_buffer) {
+            AV_LOGE_ID(TAG, buffer->serial, "Invalid MediaCodec context");
+            return false;
+        }
+
+        // 直接复用硬件缓冲区（不拷贝数据）
+        ctx->release_output_buffer(ctx, false);  // 立即释放缓冲区（不渲染）
+        return true;
+    }
+
 #endif
 
 #if defined(__APPLE__)

@@ -60,6 +60,8 @@ REDPLAYER_NS_BEGIN;
 #if defined(__ANDROID__)
         // Android NDK实现
         void androidEncodeLoop();
+        bool copyYUV420PToEncoder(uint8_t* dst, const std::shared_ptr<CGlobalBuffer>& buffer, size_t dstSize);
+        bool handleMediaCodecBuffer(const std::shared_ptr<CGlobalBuffer>& buffer, AMediaCodec* codec, int index);
 #endif
 #if defined(__APPLE__)
         // iOS实现
