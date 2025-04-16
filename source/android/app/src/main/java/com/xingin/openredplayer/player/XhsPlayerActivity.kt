@@ -232,14 +232,14 @@ class XhsPlayerActivity : AppCompatActivity(), XhsSectionAdapter.OnSectionItemCl
     private fun startOrStopRecord() {
         if (videoPlayerView.isRecording) {
             videoPlayerView.stopRecord()
-            playRecordButton.setBackgroundResource(R.drawable.icon_recording)
+            playRecordButton.setBackgroundResource(R.drawable.icon_record)
         } else {
             val path = "/sdcard/Android/data/com.xingin.openredplayer/"
             val directory = File(path)
             if (directory.exists() && directory.isDirectory) {
                 Log.d(TAG, "文件夹存在")
                 videoPlayerView.startRecord(path + "output.mp4")
-                playRecordButton.setBackgroundResource(R.drawable.icon_record)
+                playRecordButton.setBackgroundResource(R.drawable.icon_recording)
             } else {
                 Log.w(TAG, "文件夹不存在")
             }
