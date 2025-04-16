@@ -238,7 +238,7 @@ class XhsPlayerActivity : AppCompatActivity(), XhsSectionAdapter.OnSectionItemCl
             val directory = File(path)
             if (directory.exists() && directory.isDirectory) {
                 Log.d(TAG, "文件夹存在")
-                videoPlayerView.startRecord(path + "output.mp4")
+                videoPlayerView.startRecord("${path}output_${System.currentTimeMillis()}.mp4")
                 playRecordButton.setBackgroundResource(R.drawable.icon_recording)
             } else {
                 Log.w(TAG, "文件夹不存在")
