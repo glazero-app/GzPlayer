@@ -80,7 +80,7 @@ REDPLAYER_NS_BEGIN;
         AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_WIDTH, width);
         AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_HEIGHT, height);
         AMediaFormat_setFloat(mVideoFormat, AMEDIAFORMAT_KEY_FRAME_RATE, fps);
-//        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_COLOR_FORMAT, 0x7F000100); // Flexible YUV，这行有问题
+        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_COLOR_FORMAT, 21);
         AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_BIT_RATE, width * height * 4);
         AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_I_FRAME_INTERVAL, 2);
 
@@ -165,10 +165,14 @@ REDPLAYER_NS_BEGIN;
     void GzRecorder::stopRecording() {
         AV_LOGI_ID(TAG, mID, "%s\n", __func__);
         mIsRecording = false;
+        mFrameQueue.abort();
+        AMediaMuxer_stop(mMuxer); // 必须调用
+        AMediaMuxer_delete(mMuxer);
+        mMuxer = nullptr;
         if (mEncodeThread.joinable()) {
-            mFrameQueue.abort();
             mEncodeThread.join();
         }
+        AV_LOGI_ID(TAG, mID, "%s%d\n", __func__,__LINE__);
         releaseResources();
     }
 
@@ -187,7 +191,7 @@ REDPLAYER_NS_BEGIN;
     }
 
     void GzRecorder::encodeLoop() {
-        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
+//        AV_LOGI_ID(TAG, mID, "%s\n", __func__);
 #if defined(__ANDROID__)
         androidEncodeLoop();
 #endif
@@ -216,7 +220,7 @@ REDPLAYER_NS_BEGIN;
                     if (buf && buffer->datasize <= bufSize) {
                         memcpy(buf, buffer->audioBuf, buffer->datasize);
                         AMediaCodec_queueInputBuffer(mAudioCodec, inIndex, 0, buffer->datasize,
-                                                     buffer->pts / 1000, 0);
+                                                     buffer->pts * 1000, 0);
                     }
                 }
 
@@ -243,12 +247,15 @@ REDPLAYER_NS_BEGIN;
             } else {
                 // ================= 视频帧处理逻辑 =================
                 ssize_t inIndex = AMediaCodec_dequeueInputBuffer(mVideoCodec, 2000);
-                AV_LOGI_ID(TAG, mID, "%s, inIndex=%zd\n", __func__, inIndex);
+                if (!isRecording()) {
+                    continue;
+                }
+//                AV_LOGI_ID(TAG, mID, "%s, inIndex=%zd\n", __func__, inIndex);
                 if (inIndex >= 0) {
                     size_t bufSize;
                     uint8_t* dstBuf = AMediaCodec_getInputBuffer(mVideoCodec, inIndex, &bufSize);
 
-                    AV_LOGI_ID(TAG, mID, "%s, buffer->pixel_format=%d\n", __func__, buffer->pixel_format);
+//                    AV_LOGI_ID(TAG, mID, "%s, buffer->pixel_format=%d\n", __func__, buffer->pixel_format);
                     if (dstBuf) {
                         bool copySuccess = false;
                         switch (buffer->pixel_format) {
@@ -264,7 +271,8 @@ REDPLAYER_NS_BEGIN;
                         }
 
                         if (copySuccess) {
-                            AMediaCodec_queueInputBuffer(mVideoCodec,inIndex,0,bufSize,buffer->pts / 1000,0);
+                            AV_LOGI_ID(TAG, mID, "copySuccess: %f", buffer->pts);
+                            AMediaCodec_queueInputBuffer(mVideoCodec,inIndex,0,bufSize,buffer->pts * 1000,0);
                         }
                     }
                 }
@@ -300,6 +308,12 @@ REDPLAYER_NS_BEGIN;
 
                     AMediaCodec_releaseOutputBuffer(mVideoCodec, outIndex, false);
                     outIndex = AMediaCodec_dequeueOutputBuffer(mVideoCodec, &info, 0);
+
+                    // 释放数据
+                    if (buffer->opaque) {
+                        delete (CGlobalBuffer::MediaCodecBufferContext *) buffer->opaque;
+                        buffer->opaque = nullptr;
+                    }
                 }
             }
         }
