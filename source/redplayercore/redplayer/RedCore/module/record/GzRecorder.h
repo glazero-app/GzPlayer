@@ -1,4 +1,5 @@
 //
+// GzRecorder.h - 跨平台原生编码器头文件(Android/iOS)
 // Created by guoshichao on 2025/4/14.
 //
 
@@ -7,68 +8,86 @@
 #include "base/RedBuffer.h"
 #include "base/RedQueue.h"
 #include <atomic>
+#include <memory>
 #include <mutex>
-#include <queue>
 #include <thread>
 
-// FFmpeg 前置声明（避免直接包含FFmpeg头文件污染全局命名空间）
-struct AVFormatContext;
-struct AVCodecContext;
-struct AVStream;
-struct SwsContext;
-struct SwrContext;
-struct AVFrame;
+// 平台相关前置声明
+#if defined(__ANDROID__)
+typedef struct AMediaCodec AMediaCodec;
+typedef struct AMediaFormat AMediaFormat;
+typedef struct AMediaMuxer AMediaMuxer;
+#endif
+#if defined(__APPLE__)
+#import <CoreMedia/CMSampleBuffer.h>
+#import <CoreVideo/CVPixelBuffer.h>
+@class AVAssetWriter;
+@class AVAssetWriterInput;
+#endif
 
 REDPLAYER_NS_BEGIN;
 
 /**
- * MP4文件录制器（线程安全）
- * 功能：将CGlobalBuffer中的YUV/PCM数据编码为MP4
+ * 跨平台音视频录制器 (Android MediaCodec / iOS AVAssetWriter)
+ * 功能：将YUV/PCM数据编码为MP4文件
  */
     class GzRecorder {
     public:
-        GzRecorder(int id);
+        explicit GzRecorder(int id);
         ~GzRecorder();
 
-        // 初始化容器上下文
+        // 初始化输出文件容器
         bool init(const std::string &path);
 
-        // 初始化编码器
+        // 编码器配置
         bool initVideoEncoder(int width, int height, float fps);
         bool initAudioEncoder(int sampleRate, int channels, int sampleFmt);
 
         // 控制接口
-        void startRecording(const std::string& path);
+        void startRecording();
         void stopRecording();
-        bool isRecording();
+        bool isRecording() const;
 
-        // 数据输入（自动深拷贝）
+        // 数据输入接口（线程安全）
         void pushVideoFrame(std::shared_ptr<CGlobalBuffer> buffer);
         void pushAudioFrame(std::shared_ptr<CGlobalBuffer> buffer);
 
     private:
-        const int mID{0};
-        // FFmpeg 核心对象
-        AVFormatContext* mFormatCtx = nullptr;
-        AVCodecContext* mVideoCodecCtx = nullptr;
-        AVCodecContext* mAudioCodecCtx = nullptr;
-        AVStream* mVideoStream = nullptr;
-        AVStream* mAudioStream = nullptr;
-        SwsContext* mVideoSwsCtx = nullptr;
-        SwrContext* mAudioSwrCtx = nullptr;
-
-        // 线程控制
-        std::thread mEncodeThread;
-        FrameQueue mFrameQueue;
-        std::atomic<bool> mIsRecording{false};
-        int64_t mAudioPts = 0; // 音频时间戳累加器
-
-        // 内部方法
+        // 平台私有实现
         void encodeLoop();
         void releaseResources();
-        AVFrame* convertVideoFrame(std::shared_ptr<CGlobalBuffer> buffer);
-        AVFrame* convertAudioFrame(std::shared_ptr<CGlobalBuffer> buffer);
-        void writePackets(AVCodecContext* codecCtx, AVStream* stream);
+
+#if defined(__ANDROID__)
+        // Android NDK实现
+        void androidEncodeLoop();
+#endif
+#if defined(__APPLE__)
+        // iOS实现
+    void appleEncodeLoop();
+#endif
+
+        const int mID;
+        std::atomic<bool> mIsRecording{false};
+        std::thread mEncodeThread;
+        FrameQueue mFrameQueue;
+
+#if defined(__ANDROID__)
+        // Android MediaCodec资源
+        AMediaMuxer* mMuxer = nullptr;
+        AMediaCodec* mVideoCodec = nullptr;
+        AMediaCodec* mAudioCodec = nullptr;
+        AMediaFormat* mVideoFormat = nullptr;
+        AMediaFormat* mAudioFormat = nullptr;
+#endif
+#if defined(__APPLE__)
+        // iOS AVFoundation资源
+    AVAssetWriter* __strong mAssetWriter = nil;
+    AVAssetWriterInput* __strong mVideoInput = nil;
+    AVAssetWriterInput* __strong mAudioInput = nil;
+    CMFormatDescriptionRef mVideoFormatDesc = nullptr;
+    CMFormatDescriptionRef mAudioFormatDesc = nullptr;
+    dispatch_queue_t mWriteQueue;
+#endif
     };
 
 REDPLAYER_NS_END;

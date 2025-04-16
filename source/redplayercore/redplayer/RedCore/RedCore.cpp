@@ -263,7 +263,7 @@ RED_ERR CRedCore::startRecord(const std::string& path) {
         TrackInfo audio_track = mMetaData->track_info[mMetaData->audio_index];
         mGzRecorder->initAudioEncoder(audio_track.sample_rate, audio_track.channels, audio_track.sample_fmt);
     }
-    mGzRecorder->startRecording(path);
+    mGzRecorder->startRecording();
     return OK;
 }
 

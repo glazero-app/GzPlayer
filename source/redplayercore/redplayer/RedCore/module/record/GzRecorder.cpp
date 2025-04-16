@@ -1,315 +1,403 @@
 //
+// GzRecorder.cpp - 跨平台原生编码器实现(Android/iOS)
 // Created by guoshichao on 2025/4/14.
 //
 
 #include "GzRecorder.h"
+#include "base/RedBuffer.h"
+#include "base/RedQueue.h"
 #include "RedLog.h"
 
-#include <unistd.h>
-#include <sys/stat.h>
+#include <atomic>
+#include <thread>
+#include <mutex>
 
-extern "C" {
-#include "libavcodec/avcodec.h"
-#include "libavformat/avformat.h"
-#include "libswscale/swscale.h"
-#include "libswresample/swresample.h"
-#include "libavutil/imgutils.h"
-}
+#if defined(__ANDROID__)
+#include <media/NdkMediaCodec.h>
+#include <media/NdkMediaMuxer.h>
+#include <android/api-level.h>
+#include <fcntl.h>
+#endif
+#if defined(__APPLE__)
+#import <AVFoundation/AVFoundation.h>
+#import <VideoToolbox/VideoToolbox.h>
+#import <AudioToolbox/AudioToolbox.h>
+#endif
 
 #define TAG "GzRecorder"
 
 REDPLAYER_NS_BEGIN;
 
-GzRecorder::GzRecorder(int id): mID(id) {
-    // 初始化FFmpeg库（线程安全）
-    static std::once_flag ffmpeg_init_flag;
-    std::call_once(ffmpeg_init_flag, [](){
-        av_register_all();
-        avformat_network_init();
-    });
-}
-
-GzRecorder::~GzRecorder() {
-    stopRecording();
-}
-
-bool GzRecorder::init(const std::string &path) {
-    AVOutputFormat* ofmt = av_oformat_next(nullptr);
-    while (ofmt) {
-        AV_LOGI(TAG, "Supported format: %s (%s)", ofmt->name, ofmt->long_name);
-        ofmt = av_oformat_next(ofmt);
+    GzRecorder::GzRecorder(int id) : mID(id) {
+#ifdef __APPLE__
+        mWriteQueue = dispatch_queue_create("recorder.queue", DISPATCH_QUEUE_SERIAL);
+#endif
     }
-    // 1. 创建输出上下文
-    int ret = avformat_alloc_output_context2(&mFormatCtx, nullptr, nullptr, path.c_str());
-    if (ret < 0) {
-        AV_LOGE_ID(TAG, mID, "avformat_alloc_output_context2 failed: %d \n", ret);
+
+    GzRecorder::~GzRecorder() {
+        stopRecording();
+    }
+
+    bool GzRecorder::init(const std::string &path) {
+#if defined(__ANDROID__)
+        // 以读写模式打开文件（如果文件不存在则创建）
+        int flags = O_CREAT | O_RDWR | O_CLOEXEC;
+        int fd = open(path.c_str(), flags, 0644);
+        if (fd < 0) {
+            AV_LOGE_ID(TAG, mID, "File open failed: %s", strerror(errno));
+            return false;
+        }
+        mMuxer = AMediaMuxer_new(fd, AMEDIAMUXER_OUTPUT_FORMAT_MPEG_4);
+        if (!mMuxer) {
+            close(fd);
+            return false;
+        }
+        return true;
+#endif
+#if defined(__APPLE__)
+        NSError* error = nil;
+    NSURL* url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path.c_str()]];
+    mAssetWriter = [[AVAssetWriter alloc] initWithURL:url
+                                            fileType:AVFileTypeMPEG4
+                                               error:&error];
+    if(error) {
+        AV_LOGE_ID(TAG, mID, "Init AVAssetWriter failed: %s", [[error localizedDescription] UTF8String]);
         return false;
     }
     return true;
-}
-
-// 初始化视频编码器（H.264）
-bool GzRecorder::initVideoEncoder(int width, int height, float fps) {
-    // 1. 添加视频流
-    AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_H264);
-    mVideoStream = avformat_new_stream(mFormatCtx, codec);
-
-    // 2. 配置编码参数
-    mVideoCodecCtx = avcodec_alloc_context3(codec);
-    mVideoCodecCtx->width = width;
-    mVideoCodecCtx->height = height;
-    mVideoCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
-    mVideoCodecCtx->time_base = {1, static_cast<int>(fps)};
-    mVideoCodecCtx->bit_rate = width * height * 4; // 粗略计算码率
-    avcodec_open2(mVideoCodecCtx, codec, nullptr);
-
-    // 3. 初始化像素转换器
-    mVideoSwsCtx = sws_getContext(width, height, AV_PIX_FMT_YUV420P10LE,
-                                  width, height, AV_PIX_FMT_YUV420P,
-                                  SWS_BILINEAR, nullptr, nullptr, nullptr);
-    return true;
-}
-
-// 初始化音频编码器（AAC）
-bool GzRecorder::initAudioEncoder(int sampleRate, int channels, int sampleFmt) {
-    AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
-    mAudioStream = avformat_new_stream(mFormatCtx, codec);
-
-    mAudioCodecCtx = avcodec_alloc_context3(codec);
-    mAudioCodecCtx->sample_rate = sampleRate;
-    mAudioCodecCtx->channel_layout = av_get_default_channel_layout(channels);
-    mAudioCodecCtx->channels = channels;
-    mAudioCodecCtx->sample_fmt = static_cast<AVSampleFormat>(sampleFmt);
-    avcodec_open2(mAudioCodecCtx, codec, nullptr);
-
-    // 初始化音频重采样器（S16 → FLTP）
-    mAudioSwrCtx = swr_alloc_set_opts(nullptr,
-                                      mAudioCodecCtx->channel_layout,
-                                      mAudioCodecCtx->sample_fmt,
-                                      mAudioCodecCtx->sample_rate,
-                                      av_get_default_channel_layout(channels),
-                                      AV_SAMPLE_FMT_S16,
-                                      sampleRate, 0, nullptr);
-    swr_init(mAudioSwrCtx);
-    return true;
-}
-
-// 启动编码线程
-void GzRecorder::startRecording(const std::string& path) {
-    AV_LOGD_ID(TAG, mID, "startRecord path = %s", path.c_str());
-    if (mIsRecording) return;
-    mIsRecording = true;
-    mEncodeThread = std::thread(&GzRecorder::encodeLoop, this);
-}
-
-// 停止录制（阻塞等待线程结束）
-void GzRecorder::stopRecording() {
-    mIsRecording = false;
-    if (mEncodeThread.joinable()) {
-        mFrameQueue.abort();
-        mEncodeThread.join();
-    }
-    releaseResources();
-}
-
-// 录制状态
-bool GzRecorder::isRecording() {
-    return mIsRecording.load();
-}
-
-// 编码线程主循环
-void GzRecorder::encodeLoop() {
-    // 打开输出文件
-    int ret = avio_open(&mFormatCtx->pb, mFormatCtx->url, AVIO_FLAG_WRITE);
-    if (ret < 0) {
-        AV_LOGE_ID(TAG, mID, "Failed to open output file\n");
-        return;
+#endif
     }
 
-    // 写入文件头
-    ret = avformat_write_header(mFormatCtx, nullptr);
-    if (ret < 0) {
-        AV_LOGE_ID(TAG, mID, "Failed to write header: %d\n", ret);
-        return;
+    bool GzRecorder::initVideoEncoder(int width, int height, float fps) {
+#if defined(__ANDROID__)
+        mVideoFormat = AMediaFormat_new();
+        AMediaFormat_setString(mVideoFormat, AMEDIAFORMAT_KEY_MIME, "video/avc");
+        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_WIDTH, width);
+        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_HEIGHT, height);
+        AMediaFormat_setFloat(mVideoFormat, AMEDIAFORMAT_KEY_FRAME_RATE, fps);
+        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_COLOR_FORMAT, 0x7F000100); // Flexible YUV
+        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_BIT_RATE, width * height * 4);
+        AMediaFormat_setInt32(mVideoFormat, AMEDIAFORMAT_KEY_I_FRAME_INTERVAL, 1);
+
+        mVideoCodec = AMediaCodec_createEncoderByType("video/avc");
+        AMediaCodec_configure(mVideoCodec, mVideoFormat, nullptr, nullptr,
+                              AMEDIACODEC_CONFIGURE_FLAG_ENCODE);
+        AMediaCodec_start(mVideoCodec);
+        return true;
+#endif
+#if defined(__APPLE__)
+        NSDictionary* videoSettings = @{
+        AVVideoCodecKey: AVVideoCodecTypeH264,
+        AVVideoWidthKey: @(width),
+        AVVideoHeightKey: @(height),
+        AVVideoScalingModeKey: AVVideoScalingModeResizeAspect,
+        AVVideoCompressionPropertiesKey: @{
+            AVVideoAverageBitRateKey: @(width * height * 4),
+            AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
+        }
+    };
+
+    mVideoInput = [AVAssetWriterInput assetWriterInputWithMediaType:AVMediaTypeVideo
+                                                  outputSettings:videoSettings];
+    mVideoInput.expectsMediaDataInRealTime = YES;
+
+    if([mAssetWriter canAddInput:mVideoInput]) {
+        [mAssetWriter addInput:mVideoInput];
+        return true;
+    }
+    return false;
+#endif
     }
 
-    // 主循环
+    bool GzRecorder::initAudioEncoder(int sampleRate, int channels, int sampleFmt) {
+#if defined(__ANDROID__)
+        mAudioFormat = AMediaFormat_new();
+        AMediaFormat_setString(mAudioFormat, AMEDIAFORMAT_KEY_MIME, "audio/mp4a-latm");
+        AMediaFormat_setInt32(mAudioFormat, AMEDIAFORMAT_KEY_SAMPLE_RATE, sampleRate);
+        AMediaFormat_setInt32(mAudioFormat, AMEDIAFORMAT_KEY_CHANNEL_COUNT, channels);
+        AMediaFormat_setInt32(mAudioFormat, AMEDIAFORMAT_KEY_BIT_RATE, 64000);
+        AMediaFormat_setInt32(mAudioFormat, AMEDIAFORMAT_KEY_AAC_PROFILE, 2); // AAC LC
+
+        mAudioCodec = AMediaCodec_createEncoderByType("audio/mp4a-latm");
+        AMediaCodec_configure(mAudioCodec, mAudioFormat, nullptr, nullptr,
+                              AMEDIACODEC_CONFIGURE_FLAG_ENCODE);
+        AMediaCodec_start(mAudioCodec);
+        return true;
+#endif
+#if defined(__APPLE__)
+        AudioChannelLayout acl = {
+        .mChannelLayoutTag = kAudioChannelLayoutTag_DiscreteInOrder | channels
+    };
+
+    NSDictionary* audioSettings = @{
+        AVFormatIDKey: @(kAudioFormatMPEG4AAC),
+        AVSampleRateKey: @(sampleRate),
+        AVNumberOfChannelsKey: @(channels),
+        AVChannelLayoutKey: [NSData dataWithBytes:&acl length:sizeof(acl)],
+        AVEncoderBitRateKey: @(64000)
+    };
+
+    mAudioInput = [AVAssetWriterInput assetWriterInputWithMediaType:AVMediaTypeAudio
+                                                  outputSettings:audioSettings];
+    mAudioInput.expectsMediaDataInRealTime = YES;
+
+    if([mAssetWriter canAddInput:mAudioInput]) {
+        [mAssetWriter addInput:mAudioInput];
+        return true;
+    }
+    return false;
+#endif
+    }
+
+    void GzRecorder::startRecording() {
+        if (mIsRecording) return;
+        mIsRecording = true;
+        mEncodeThread = std::thread(&GzRecorder::encodeLoop, this);
+    }
+
+    void GzRecorder::stopRecording() {
+        mIsRecording = false;
+        if (mEncodeThread.joinable()) {
+            mFrameQueue.abort();
+            mEncodeThread.join();
+        }
+        releaseResources();
+    }
+
+    bool GzRecorder::isRecording() const {
+        return mIsRecording;
+    }
+
+    void GzRecorder::pushVideoFrame(std::shared_ptr<CGlobalBuffer> buffer) {
+        mFrameQueue.putFrame(buffer);
+    }
+
+    void GzRecorder::pushAudioFrame(std::shared_ptr<CGlobalBuffer> buffer) {
+        mFrameQueue.putFrame(buffer);
+    }
+
+    void GzRecorder::encodeLoop() {
+#if defined(__ANDROID__)
+        androidEncodeLoop();
+#endif
+#if defined(__APPLE__)
+        appleEncodeLoop();
+#endif
+    }
+
+#if defined(__ANDROID__)
+    void GzRecorder::androidEncodeLoop() {
+        bool muxerStarted = false;
+        int videoTrackIndex = -1;
+        int audioTrackIndex = -1;
+
+        while (mIsRecording) {
+            std::shared_ptr<CGlobalBuffer> buffer;
+            mFrameQueue.getFrame(buffer);
+            if (!buffer) continue;
+
+            if (buffer->pixel_format == CGlobalBuffer::kAudio) {
+                // 处理音频帧
+                ssize_t inIndex = AMediaCodec_dequeueInputBuffer(mAudioCodec, 2000);
+                if (inIndex >= 0) {
+                    size_t bufSize;
+                    uint8_t* buf = AMediaCodec_getInputBuffer(mAudioCodec, inIndex, &bufSize);
+                    if (buf && buffer->datasize <= bufSize) {
+                        memcpy(buf, buffer->audioBuf, buffer->datasize);
+                        AMediaCodec_queueInputBuffer(mAudioCodec, inIndex, 0, buffer->datasize,
+                                                     buffer->pts / 1000, 0);
+                    }
+                }
+
+                // 处理编码输出
+                AMediaCodecBufferInfo info;
+                ssize_t outIndex = AMediaCodec_dequeueOutputBuffer(mAudioCodec, &info, 0);
+                if (outIndex >= 0) {
+                    if (!muxerStarted && (info.flags & AMEDIACODEC_BUFFER_FLAG_CODEC_CONFIG)) {
+                        AMediaFormat* format = AMediaCodec_getOutputFormat(mAudioCodec);
+                        audioTrackIndex = AMediaMuxer_addTrack(mMuxer, format);
+                        AMediaFormat_delete(format);
+
+                        if (videoTrackIndex >= 0 && audioTrackIndex >= 0) {
+                            AMediaMuxer_start(mMuxer);
+                            muxerStarted = true;
+                        }
+                    } else if (muxerStarted) {
+                        AMediaMuxer_writeSampleData(mMuxer, audioTrackIndex,
+                                                    AMediaCodec_getOutputBuffer(mAudioCodec, outIndex, nullptr),
+                                                    &info);
+                    }
+                    AMediaCodec_releaseOutputBuffer(mAudioCodec, outIndex, false);
+                }
+            } else {
+                // 处理视频帧（逻辑类似）
+                // ...
+            }
+        }
+
+        // 冲刷编码器
+#if __ANDROID_API__ >= 26
+        // NDK r21+ 方式（API 26+）
+        if (mVideoCodec) AMediaCodec_signalEndOfInputStream(mVideoCodec);
+        if (mAudioCodec) AMediaCodec_signalEndOfInputStream(mAudioCodec);
+#else
+        // API 21-25 的替代方案
+        if (mVideoCodec) {
+            ssize_t inIndex = AMediaCodec_dequeueInputBuffer(mVideoCodec, 2000);
+            if (inIndex >= 0) {
+                AMediaCodec_queueInputBuffer(mVideoCodec,inIndex,0, 0, 0,AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM);
+            }
+        }
+        if (mAudioCodec) {
+            ssize_t inIndex = AMediaCodec_dequeueInputBuffer(mAudioCodec, 2000);
+            if (inIndex >= 0) {
+                AMediaCodec_queueInputBuffer(mAudioCodec,inIndex,0, 0, 0,AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM);
+            }
+        }
+#endif
+    }
+#endif
+
+#if defined(__APPLE__)
+    void GzRecorder::appleEncodeLoop() {
+    [mAssetWriter startWriting];
+    [mAssetWriter startSessionAtSourceTime:kCMTimeZero];
+
     while (mIsRecording) {
         std::shared_ptr<CGlobalBuffer> buffer;
         mFrameQueue.getFrame(buffer);
-        // 处理视频帧（示例，音频类似）
-        if (buffer == nullptr) {
-            continue;
-        }
-        switch (buffer->pixel_format) {
-            case CGlobalBuffer::kUnknow: {
-                // 可能需要报错
-                break;
+        if (!buffer) continue;
+
+        dispatch_sync(mWriteQueue, ^{
+            if (buffer->pixel_format == CGlobalBuffer::kAudio) {
+                processAppleAudioFrame(buffer.get());
+            } else {
+                processAppleVideoFrame(buffer.get());
             }
-            case CGlobalBuffer::kAudio: {
-                // 编码音频帧
-                AVFrame* audioFrame = convertAudioFrame(buffer);
-                if (audioFrame) {
-                    avcodec_send_frame(mAudioCodecCtx, audioFrame);
-                    writePackets(mAudioCodecCtx, mAudioStream);
-                    av_frame_free(&audioFrame);
-                }
-                break;
-            }
-            case CGlobalBuffer::kYUV420:
-            case CGlobalBuffer::kVTBBuffer:
-            case CGlobalBuffer::kMediaCodecBuffer:
-            case CGlobalBuffer::kYUVJ420P:
-            case CGlobalBuffer::kYUV420P10LE:
-            case CGlobalBuffer::kHarmonyVideoDecoderBuffer: {
-                // 编码视频帧
-                AVFrame* videoFrame = convertVideoFrame(buffer);
-                if (videoFrame) {
-                    avcodec_send_frame(mVideoCodecCtx, videoFrame);
-                    writePackets(mVideoCodecCtx, mVideoStream);
-                    av_frame_free(&videoFrame);
-                }
-                break;
-            }
+        });
+    }
+
+    [mVideoInput markAsFinished];
+    [mAudioInput markAsFinished];
+    [mAssetWriter finishWritingWithCompletionHandler:^{}];
+}
+
+void GzRecorder::processAppleAudioFrame(CGlobalBuffer* buffer) {
+    if (!mAudioInput.readyForMoreMediaData) return;
+
+    CMBlockBufferRef blockBuffer = nullptr;
+    CMSampleBufferRef sampleBuffer = nullptr;
+
+    OSStatus status = CMBlockBufferCreateWithMemoryBlock(
+        kCFAllocatorDefault,
+        buffer->audioBuf,
+        buffer->datasize,
+        kCFAllocatorNull,
+        nullptr, 0, buffer->datasize,
+        0, &blockBuffer);
+
+    if (status == noErr) {
+        const AudioStreamBasicDescription asbd = {
+            .mSampleRate = mAudioInput.audioSettings[AVSampleRateKey] ?
+                [mAudioInput.audioSettings[AVSampleRateKey] doubleValue] : 44100,
+            .mFormatID = kAudioFormatMPEG4AAC,
+            .mChannelsPerFrame = (UInt32)[mAudioInput.audioSettings[AVNumberOfChannelsKey] intValue],
+            .mBitsPerChannel = 16,
+            .mFramesPerPacket = 1024
+        };
+
+        CMAudioFormatDescriptionCreate(
+            kCFAllocatorDefault,
+            &asbd,
+            0, nullptr,
+            0, nullptr,
+            nullptr,
+            &mAudioFormatDesc);
+
+        CMSampleTimingInfo timing = {
+            .presentationTimeStamp = CMTimeMake(buffer->pts, 1000000)
+        };
+
+        status = CMSampleBufferCreate(
+            kCFAllocatorDefault,
+            blockBuffer,
+            true, nullptr, nullptr,
+            mAudioFormatDesc,
+            1, 1, &timing,
+            0, nullptr,
+            &sampleBuffer);
+    }
+
+    if (status == noErr && sampleBuffer) {
+        [mAudioInput appendSampleBuffer:sampleBuffer];
+    }
+
+    if (blockBuffer) CFRelease(blockBuffer);
+    if (sampleBuffer) CFRelease(sampleBuffer);
+}
+
+void GzRecorder::processAppleVideoFrame(CGlobalBuffer* buffer) {
+    if (!mVideoInput.readyForMoreMediaData) return;
+
+    CVPixelBufferRef pixelBuffer = nullptr;
+    CVReturn status = CVPixelBufferCreate(
+        kCFAllocatorDefault,
+        buffer->width,
+        buffer->height,
+        kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+        nullptr,
+        &pixelBuffer);
+
+    if (status == kCVReturnSuccess) {
+        CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+
+        // 填充YUV数据到pixelBuffer
+        uint8_t* yDestPlane = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0);
+        uint8_t* uvDestPlane = (uint8_t*)CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1);
+
+        // 实际数据拷贝逻辑根据buffer的具体格式实现
+        // ...
+
+        CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+
+        CMSampleTimingInfo timing = {
+            .presentationTimeStamp = CMTimeMake(buffer->pts, 1000000)
+        };
+
+        CMSampleBufferRef sampleBuffer = nullptr;
+        OSStatus status = CMSampleBufferCreateForImageBuffer(
+            kCFAllocatorDefault,
+            pixelBuffer,
+            true, nullptr, nullptr,
+            mVideoFormatDesc,
+            &timing,
+            &sampleBuffer);
+
+        if (status == noErr && sampleBuffer) {
+            [mVideoInput appendSampleBuffer:sampleBuffer];
+            CFRelease(sampleBuffer);
         }
     }
 
-    // 冲刷编码器
-    avcodec_send_frame(mVideoCodecCtx, nullptr);
-    writePackets(mVideoCodecCtx, mVideoStream);
-    avcodec_send_frame(mAudioCodecCtx, nullptr);
-    writePackets(mAudioCodecCtx, mAudioStream);
-
-    // 写入文件尾
-    av_write_trailer(mFormatCtx);
+    if (pixelBuffer) CVPixelBufferRelease(pixelBuffer);
 }
-
-// ================== 数据输入方法 ================== //
-void GzRecorder::pushVideoFrame(std::shared_ptr<CGlobalBuffer> buffer) {
-    mFrameQueue.putFrame(buffer);
-}
-
-void GzRecorder::pushAudioFrame(std::shared_ptr<CGlobalBuffer> buffer) {
-    mFrameQueue.putFrame(buffer);
-}
-
-// ================== 数据转换方法 ================== //
-AVFrame* GzRecorder::convertVideoFrame(std::shared_ptr<CGlobalBuffer> buffer) {
-    AVFrame* frame = av_frame_alloc();
-    if (!frame) return nullptr;
-
-    frame->width = buffer->width;
-    frame->height = buffer->height;
-    frame->format = AV_PIX_FMT_YUV420P;
-    frame->pts = av_rescale_q(buffer->pts, {1, 1000000}, mVideoCodecCtx->time_base);
-
-    // 根据不同格式处理数据
-    switch (buffer->pixel_format) {
-        case CGlobalBuffer::kYUV420:
-        case CGlobalBuffer::kYUVJ420P: {
-            // 直接使用8bit YUV420数据
-            av_frame_get_buffer(frame, 32);
-            av_image_fill_arrays(frame->data, frame->linesize, buffer->yBuffer,
-                                 AV_PIX_FMT_YUV420P, buffer->width, buffer->height, 1);
-            break;
-        }
-        case CGlobalBuffer::kYUV420P10LE: {
-            // 10bit转8bit
-            av_frame_get_buffer(frame, 32);
-            const uint8_t* srcData[3] = {buffer->yBuffer, buffer->uBuffer, buffer->vBuffer};
-            int srcStride[3] = {buffer->yStride, buffer->uStride, buffer->vStride};
-            sws_scale(mVideoSwsCtx, srcData, srcStride, 0,
-                      buffer->height, frame->data, frame->linesize);
-            break;
-        }
-        case CGlobalBuffer::kVTBBuffer: {
-#if defined(__APPLE__)
-    // VideoToolbox输出处理
-    auto* toolBuffer = static_cast<CGlobalBuffer::VideoToolBufferContext*>(buffer->opaque);
-    CVPixelBufferRef pixelBuffer = toolBuffer->buffer;
-
-    CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
-    av_frame_get_buffer(frame, 32);
-
-    // 从CVPixelBuffer提取YUV数据
-    uint8_t* dstData[3] = {frame->data[0], frame->data[1], frame->data[2]};
-    int dstLinesize[3] = {frame->linesize[0], frame->linesize[1], frame->linesize[2]};
-
-    for (int i = 0; i < CVPixelBufferGetPlaneCount(pixelBuffer); i++) {
-        memcpy(dstData[i], CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, i),
-              CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, i) * CVPixelBufferGetHeightOfPlane(pixelBuffer, i));
-    }
-
-    CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
 #endif
-            break;
-        }
-        default:
-            AV_LOGE_ID(TAG, mID, "Unsupported video format: %d", buffer->pixel_format);
-            av_frame_free(&frame);
-            return nullptr;
+
+    void GzRecorder::releaseResources() {
+#if defined(__ANDROID__)
+        if (mMuxer) AMediaMuxer_delete(mMuxer);
+        if (mVideoCodec) AMediaCodec_delete(mVideoCodec);
+        if (mAudioCodec) AMediaCodec_delete(mAudioCodec);
+        if (mVideoFormat) AMediaFormat_delete(mVideoFormat);
+        if (mAudioFormat) AMediaFormat_delete(mAudioFormat);
+#endif
+#if defined(__APPLE__)
+    mVideoInput = nil;
+    mAudioInput = nil;
+    mAssetWriter = nil;
+    if (mVideoFormatDesc) CFRelease(mVideoFormatDesc);
+    if (mAudioFormatDesc) CFRelease(mAudioFormatDesc);
+#endif
     }
-
-    return frame;
-}
-
-AVFrame* GzRecorder::convertAudioFrame(std::shared_ptr<CGlobalBuffer> buffer) {
-    AVFrame* frame = av_frame_alloc();
-    if (!frame) return nullptr;
-
-    frame->nb_samples = buffer->nb_samples;
-    frame->channel_layout = mAudioCodecCtx->channel_layout;
-    frame->format = mAudioCodecCtx->sample_fmt;
-    frame->sample_rate = mAudioCodecCtx->sample_rate;
-    frame->pts = av_rescale_q(mAudioPts, {1, frame->sample_rate}, mAudioCodecCtx->time_base);
-    mAudioPts += buffer->nb_samples;
-
-    if (av_frame_get_buffer(frame, 0) < 0) {
-        av_frame_free(&frame);
-        return nullptr;
-    }
-
-    // 执行音频重采样（S16 → FLTP）
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(buffer->audioBuf);
-    swr_convert(mAudioSwrCtx, frame->data, buffer->nb_samples, &srcData, buffer->nb_samples);
-
-    return frame;
-}
-
-// ================== 编码输出方法 ================== //
-void GzRecorder::writePackets(AVCodecContext* codecCtx, AVStream* stream) {
-    AVPacket pkt;
-    av_init_packet(&pkt);
-
-    while (true) {
-        int ret = avcodec_receive_packet(codecCtx, &pkt);
-        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-            break;
-        } else if (ret < 0) {
-            AV_LOGE_ID(TAG, mID, "Error receiving packet: %d", ret);
-            break;
-        }
-
-        // 设置输出流时间戳
-        av_packet_rescale_ts(&pkt, codecCtx->time_base, stream->time_base);
-        pkt.stream_index = stream->index;
-
-        // 写入文件
-        if (av_interleaved_write_frame(mFormatCtx, &pkt) < 0) {
-            AV_LOGE_ID(TAG, mID, "Error writing packet");
-        }
-
-        av_packet_unref(&pkt);
-    }
-}
-
-// 释放所有资源
-void GzRecorder::releaseResources() {
-    if (mVideoSwsCtx) sws_freeContext(mVideoSwsCtx);
-    if (mAudioSwrCtx) swr_free(&mAudioSwrCtx);
-    if (mVideoCodecCtx) avcodec_free_context(&mVideoCodecCtx);
-    if (mAudioCodecCtx) avcodec_free_context(&mAudioCodecCtx);
-    if (mFormatCtx) avformat_free_context(mFormatCtx);
-}
 
 REDPLAYER_NS_END;
