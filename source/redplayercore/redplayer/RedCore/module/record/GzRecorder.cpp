@@ -35,7 +35,9 @@ REDPLAYER_NS_BEGIN;
     }
 
     GzRecorder::~GzRecorder() {
-        stopRecording();
+        if (mIsRecording) {
+            stopRecording();
+        }
     }
 
     bool GzRecorder::init(const std::string &path) {
@@ -57,7 +59,7 @@ REDPLAYER_NS_BEGIN;
         return true;
 #endif
 #if defined(__APPLE__)
-        NSError* error = nil;
+    NSError* error = nil;
     NSURL* url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path.c_str()]];
     mAssetWriter = [[AVAssetWriter alloc] initWithURL:url
                                             fileType:AVFileTypeMPEG4
